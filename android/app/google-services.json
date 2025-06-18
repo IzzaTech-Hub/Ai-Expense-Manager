@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "471280243926",
+    "project_id": "expenso-6b25c",
+    "storage_bucket": "expenso-6b25c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:471280243926:android:a45147c77e3fa901a86577",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_madproject"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDPlm7iXzz03mmCeeD4oak4ueu2dD2m0Fg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
