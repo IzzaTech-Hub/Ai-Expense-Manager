@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../models/goal_model.dart';
+import '../../services/goal_service.dart';
 
 class EditGoalScreen extends StatefulWidget {
   final Goal goal;
@@ -30,9 +31,7 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
     _targetAmountController = TextEditingController(
       text: widget.goal.targetAmount.toString(),
     );
-    _categoryController = TextEditingController(
-      text: widget.goal.category ?? '',
-    );
+    _categoryController = TextEditingController(text: widget.goal.category);
     _selectedDate = widget.goal.deadline;
     _dateController = TextEditingController(
       text: DateFormat('MM/dd/yyyy').format(widget.goal.deadline),
@@ -57,6 +56,13 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
   void _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    if (_selectedDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a deadline')),
+      );
+      return;
+    }
+
     final double? targetAmount = double.tryParse(
       _targetAmountController.text.trim(),
     );
@@ -70,7 +76,14 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
     setState(() => _isSaving = true);
 
     try {
-      // TODO: Replace with Firestore update logic
+      final updatedData = {
+        'title': _titleController.text.trim(),
+        'targetAmount': targetAmount,
+        'category': _categoryController.text.trim(),
+        'deadline': _selectedDate!.toIso8601String(),
+      };
+
+      await GoalService().updateGoal(widget.goal.id, updatedData);
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Goal updated successfully')),

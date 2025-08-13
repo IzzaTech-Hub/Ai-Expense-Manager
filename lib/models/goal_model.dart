@@ -1,4 +1,4 @@
-import 'dart:ui';
+import 'package:flutter/material.dart';
 
 class Goal {
   final String id;
@@ -7,7 +7,8 @@ class Goal {
   final double currentAmount;
   final DateTime deadline;
   final String? category;
-  final Color color;
+  final Color color; // <-- Make sure this is Color, not int
+  final String userId;
 
   Goal({
     required this.id,
@@ -17,11 +18,30 @@ class Goal {
     required this.deadline,
     this.category,
     required this.color,
+    required this.userId,
   });
 
-  // ✅ Add this getter to calculate progress between 0 and 1
-  double get progress {
-    if (targetAmount == 0) return 0;
-    return (currentAmount / targetAmount).clamp(0.0, 1.0);
-  }
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'targetAmount': targetAmount,
+        'currentAmount': currentAmount,
+        'deadline': deadline.toIso8601String(),
+        'category': category,
+        'color': color.value, // Store color as int
+        'userId': userId,
+      };
+
+  factory Goal.fromJson(Map<String, dynamic> json) => Goal(
+        id: json['id'] ?? '',
+        title: json['title'] ?? '',
+        targetAmount: (json['targetAmount'] ?? 0).toDouble(),
+        currentAmount: (json['currentAmount'] ?? 0).toDouble(),
+        deadline: DateTime.parse(json['deadline']),
+        category: json['category'],
+        color: Color(json['color'] ?? 0xFF000000),
+        userId: json['userId'] ?? '',
+      );
+
+  // Add fromMap/toMap if needed, converting color to/from int if using database
 }
