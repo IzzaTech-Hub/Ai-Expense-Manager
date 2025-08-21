@@ -74,7 +74,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF3B82F6)),
       ),
       // Set the initial route of your app
-      initialRoute: AppRoutes.splash,
+      initialRoute: AppRoutes.dashboardBasic,
 
       // Use your centralized route handler
       onGenerateRoute: AppRoutes.generateRoute,

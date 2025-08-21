@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_application_madproject/services/auth_service.dart'; // Update path if different
 
@@ -37,30 +38,66 @@ class _SignInScreenState extends State<SignInScreen> {
         passwordController.text.trim(),
       );
 
-      if (user != null) {
+      if (user != null && mounted) {
         // 🔍 Check if user data exists in Firestore
-        final doc =
-            await FirebaseFirestore.instance
-                .collection('users')
-                .doc(user.uid)
-                .get();
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
 
-        if (doc.exists) {
-          // ✅ Navigate to welcome screen
-          Navigator.pushReplacementNamed(context, '/welcome1');
-        } else {
-          // ❌ Firestore record not found
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No user data found in Firestore.')),
-          );
+        if (mounted) {
+          if (doc.exists) {
+            // ✅ Navigate to dashboard
+            try {
+              Navigator.pushReplacementNamed(context, '/dashboardBasic');
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Navigation failed: ${e.toString()}')),
+                );
+              }
+            }
+          } else {
+            // ❌ Firestore record not found
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('No user data found in Firestore.')),
+            );
+          }
         }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Sign in failed: ${e.toString()}')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Sign in failed: ${e.toString()}')),
+        );
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final user = await _authService.signInWithGoogle();
+
+      if (user != null && mounted) {
+        // Navigate to dashboard
+        Navigator.pushReplacementNamed(context, '/dashboardBasic');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Google sign in failed: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -178,23 +215,86 @@ class _SignInScreenState extends State<SignInScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child:
-                      _isLoading
-                          ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                          : const Text(
-                            'Sign In',
-                            style: TextStyle(color: Colors.white),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
                           ),
+                        )
+                      : const Text(
+                          'Sign In',
+                          style: TextStyle(color: Colors.white),
+                        ),
                 ),
 
                 const SizedBox(height: 20),
+
+                // OR Divider - Only show if Google Sign-In is available
+                if (!kIsWeb) ...[
+                  Row(
+                    children: [
+                      const Expanded(child: Divider()),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'OR',
+                          style: GoogleFonts.poppins(
+                            color: Colors.black54,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      const Expanded(child: Divider()),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Google Sign In Button - Only show on mobile
+                  OutlinedButton.icon(
+                    onPressed: _isLoading ? null : _signInWithGoogle,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      side: const BorderSide(color: Color(0xFFD1D5DB)),
+                    ),
+                    icon: Container(
+                      width: 20,
+                      height: 20,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF4285F4),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'G',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+                    label: Text(
+                      'Continue with Google',
+                      style: GoogleFonts.poppins(
+                        color: Colors.black87,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+                ],
 
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,

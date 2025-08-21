@@ -16,27 +16,49 @@ class GoalScreenBasic extends StatelessWidget {
     final user = AuthService().currentUser;
     final userId = user?.uid;
 
+    // If user is not logged in (guest mode), show demo data
+    if (userId == null) {
+      return _buildGuestGoals(context, screenWidth);
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFF9FAFB),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () {
+            Navigator.pushReplacementNamed(context, '/dashboardBasic');
+          },
+        ),
+        centerTitle: true,
+        title: Text(
+          'Goals',
+          style: GoogleFonts.poppins(
+            fontSize: screenWidth * 0.045,
+            fontWeight: FontWeight.w600,
+            color: Colors.black,
+          ),
+        ),
+      ),
       body: SafeArea(
-        child: userId == null
-            ? Center(child: Text('User not logged in'))
-            : StreamBuilder<List<Goal>>(
-                stream: GoalService().getGoalsStream(userId),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (snapshot.hasError) {
-                    return Center(child: Text('Error: \\${snapshot.error}'));
-                  }
-                  final goals = snapshot.data ?? [];
-                  double avgProgress = goals.isNotEmpty
-                      ? goals
-                              .map((g) => g.currentAmount / g.targetAmount)
-                              .reduce((a, b) => a + b) /
-                          goals.length
-                      : 0.0;
+        child: StreamBuilder<List<Goal>>(
+            stream: GoalService().getGoalsStream(userId),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError) {
+                return Center(child: Text('Error: \\${snapshot.error}'));
+              }
+              final goals = snapshot.data ?? [];
+              double avgProgress = goals.isNotEmpty
+                  ? goals
+                          .map((g) => g.currentAmount / g.targetAmount)
+                          .reduce((a, b) => a + b) /
+                      goals.length
+                  : 0.0;
                   return SingleChildScrollView(
                     padding: EdgeInsets.symmetric(
                       horizontal: screenWidth * 0.04,
@@ -417,5 +439,299 @@ class GoalScreenBasic extends StatelessWidget {
 
   String _formatDate(DateTime date) {
     return DateFormat('yyyy-MM-dd').format(date);
+  }
+
+  Widget _buildGuestGoals(BuildContext context, double screenWidth) {
+    // Demo goals data for guest mode
+    final demoGoals = [
+      {
+        'name': 'Emergency Fund',
+        'targetAmount': 50000.0,
+        'currentAmount': 25000.0,
+        'deadline': DateTime.now().add(Duration(days: 120)),
+        'color': Colors.blue,
+      },
+      {
+        'name': 'Vacation to Europe',
+        'targetAmount': 150000.0,
+        'currentAmount': 75000.0,
+        'deadline': DateTime.now().add(Duration(days: 200)),
+        'color': Colors.green,
+      },
+      {
+        'name': 'New Laptop',
+        'targetAmount': 80000.0,
+        'currentAmount': 60000.0,
+        'deadline': DateTime.now().add(Duration(days: 45)),
+        'color': Colors.orange,
+      },
+    ];
+
+    final double avgProgress = demoGoals.fold(0.0, (sum, goal) => 
+        sum + ((goal['currentAmount'] as double) / (goal['targetAmount'] as double))) / demoGoals.length;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF9FAFB),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFF9FAFB),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () {
+            Navigator.pushReplacementNamed(context, '/dashboardBasic');
+          },
+        ),
+        centerTitle: true,
+        title: Text(
+          'Goals (Demo)',
+          style: GoogleFonts.poppins(
+            fontSize: screenWidth * 0.045,
+            fontWeight: FontWeight.w600,
+            color: Colors.black,
+          ),
+        ),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.symmetric(
+            horizontal: screenWidth * 0.04,
+            vertical: screenWidth * 0.04,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Your Goals (Demo)',
+                      style: GoogleFonts.poppins(
+                        fontSize: screenWidth * 0.06,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Sign in to create real goals!'),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Add Goal'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF3B82F6),
+                      foregroundColor: Colors.white,
+                      textStyle: GoogleFonts.poppins(),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: screenWidth * 0.06),
+              _buildDemoProgressCard(avgProgress, screenWidth),
+              SizedBox(height: screenWidth * 0.06),
+              Text(
+                'All Goals',
+                style: GoogleFonts.poppins(
+                  fontSize: screenWidth * 0.05,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              SizedBox(height: screenWidth * 0.04),
+              ...demoGoals.map((goal) => Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: _buildDemoGoalCard(goal, screenWidth),
+              )).toList(),
+              SizedBox(height: screenWidth * 0.04),
+              Container(
+                padding: EdgeInsets.all(screenWidth * 0.04),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.blue.shade700),
+                    SizedBox(width: screenWidth * 0.03),
+                    Expanded(
+                      child: Text(
+                        'This is demo data. Sign in to create and track real financial goals!',
+                        style: GoogleFonts.poppins(
+                          fontSize: screenWidth * 0.035,
+                          color: Colors.blue.shade700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDemoProgressCard(double avgProgress, double screenWidth) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(screenWidth * 0.05),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF3B82F6), Color(0xFF60A5FA)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Overall Progress',
+            style: GoogleFonts.poppins(
+              fontSize: screenWidth * 0.045,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+          SizedBox(height: screenWidth * 0.02),
+          Text(
+            '${(avgProgress * 100).toStringAsFixed(1)}%',
+            style: GoogleFonts.poppins(
+              fontSize: screenWidth * 0.08,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          SizedBox(height: screenWidth * 0.04),
+          LinearProgressIndicator(
+            value: avgProgress,
+            backgroundColor: Colors.white24,
+            valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+            minHeight: 8,
+          ),
+          SizedBox(height: screenWidth * 0.02),
+          Text(
+            'You\'re doing great! Keep saving to reach your goals.',
+            style: GoogleFonts.poppins(
+              fontSize: screenWidth * 0.035,
+              color: Colors.white70,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDemoGoalCard(Map<String, dynamic> goal, double screenWidth) {
+    final name = goal['name'] as String;
+    final targetAmount = goal['targetAmount'] as double;
+    final currentAmount = goal['currentAmount'] as double;
+    final deadline = goal['deadline'] as DateTime;
+    final color = goal['color'] as Color;
+    
+    final progress = currentAmount / targetAmount;
+    final remaining = targetAmount - currentAmount;
+    final daysLeft = deadline.difference(DateTime.now()).inDays;
+
+    return Container(
+      padding: EdgeInsets.all(screenWidth * 0.04),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.yellow.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              SizedBox(width: screenWidth * 0.03),
+              Expanded(
+                child: Text(
+                  name,
+                  style: GoogleFonts.poppins(
+                    fontSize: screenWidth * 0.045,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Text(
+                'PKR ${remaining.toStringAsFixed(0)} left',
+                style: GoogleFonts.poppins(
+                  fontSize: screenWidth * 0.035,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: screenWidth * 0.03),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'PKR ${currentAmount.toStringAsFixed(0)}',
+                style: GoogleFonts.poppins(
+                  fontSize: screenWidth * 0.04,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+              Text(
+                'PKR ${targetAmount.toStringAsFixed(0)}',
+                style: GoogleFonts.poppins(
+                  fontSize: screenWidth * 0.04,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: screenWidth * 0.02),
+          LinearProgressIndicator(
+            value: progress,
+            backgroundColor: Colors.grey.shade200,
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+            minHeight: 8,
+          ),
+          SizedBox(height: screenWidth * 0.02),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${(progress * 100).toStringAsFixed(1)}% completed',
+                style: GoogleFonts.poppins(
+                  fontSize: screenWidth * 0.032,
+                  color: Colors.grey[600],
+                ),
+              ),
+              Text(
+                '$daysLeft days left',
+                style: GoogleFonts.poppins(
+                  fontSize: screenWidth * 0.032,
+                  color: daysLeft < 30 ? Colors.red : Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }

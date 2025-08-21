@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import '../../services/auth_service.dart';
 
 class ForgetPasswordScreen extends StatefulWidget {
   const ForgetPasswordScreen({super.key});
@@ -12,6 +12,7 @@ class ForgetPasswordScreen extends StatefulWidget {
 class _ForgetPasswordScreenState extends State<ForgetPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final emailController = TextEditingController();
+  final AuthService _authService = AuthService();
   bool _isLoading = false;
 
   @override
@@ -26,22 +27,21 @@ class _ForgetPasswordScreenState extends State<ForgetPasswordScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await FirebaseAuth.instance.sendPasswordResetEmail(
-        email: emailController.text.trim(),
-      );
+      await _authService.resetPassword(emailController.text.trim());
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Reset link sent to your email.'),
+          content: Text('Password reset link sent to your email.'),
           backgroundColor: Colors.green,
         ),
       );
-    } on FirebaseAuthException catch (e) {
-      String message = 'Something went wrong.';
-      if (e.code == 'user-not-found') {
-        message = 'No user found with this email.';
-      }
+      // Navigate back to sign in after successful request
+      Navigator.pop(context);
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: Colors.red,
+        ),
       );
     } finally {
       setState(() => _isLoading = false);

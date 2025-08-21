@@ -2,10 +2,6 @@ import 'package:flutter/material.dart';
 
 // Screens
 import '../screens/splash/splash_screen.dart';
-import '../screens/onboarding/welcome_screen_1.dart';
-import '../screens/onboarding/welcome_screen_2.dart';
-import '../screens/onboarding/welcome_screen_3.dart';
-import '../screens/onboarding/welcome_screen_4.dart';
 import '../screens/auth/sign_in_screen.dart';
 import '../screens/auth/sign_up_screen.dart';
 import '../screens/auth/forget_password_screen.dart';
@@ -26,18 +22,14 @@ import '../screens/profile/notification_preferences_screen.dart';
 import '../screens/profile/about_app_screen.dart';
 import '../screens/profile/privacy_policy_screen.dart';
 import '../screens/profile/terms_of_service_screen.dart';
+import '../screens/dashboard/ai_assistant_screen.dart';
 
 // Models
-import '../models/dashboard_data.dart';
 import '../models/goal_model.dart';
 
 class AppRoutes {
   // 🔖 Route name constants
   static const String splash = '/splash';
-  static const String welcome1 = '/welcome1';
-  static const String welcome2 = '/welcome2';
-  static const String welcome3 = '/welcome3';
-  static const String welcome4 = '/welcome4';
 
   static const String signIn = '/signin';
   static const String signUp = '/signup';
@@ -65,6 +57,7 @@ class AppRoutes {
   static const String aboutApp = '/aboutApp';
   static const String privacyPolicy = '/privacyPolicy';
   static const String termsOfService = '/termsOfService';
+  static const String aiAssistant = '/aiAssistant';
 
   /// 🔁 Route generator
   static Route<dynamic>? generateRoute(RouteSettings settings) {
@@ -73,15 +66,6 @@ class AppRoutes {
     switch (settings.name) {
       case splash:
         return _buildRoute(const SplashScreen());
-
-      case welcome1:
-        return _buildRoute(const WelcomeScreen1());
-      case welcome2:
-        return _buildRoute(const WelcomeScreen2());
-      case welcome3:
-        return _buildRoute(const WelcomeScreen3());
-      case welcome4:
-        return _buildRoute(const WelcomeScreen4());
 
       case signIn:
         return _buildRoute(const SignInScreen());
@@ -140,6 +124,8 @@ class AppRoutes {
 
       case profileScreen:
         return _buildRoute(const ProfileScreen());
+      case aiAssistant:
+        return _buildRoute(const AiAssistantScreen());
 
       case editProfile:
         return _buildRoute(const EditProfileScreen());

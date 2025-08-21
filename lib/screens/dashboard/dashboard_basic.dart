@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../routes/app_routes.dart';
 import '../../widgets/app_bottom_nav_bar.dart';
 
 class DashboardScreen extends StatelessWidget {
@@ -13,9 +12,12 @@ class DashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final user = FirebaseAuth.instance.currentUser;
+    
+    // For guest mode, show demo data instead of Firebase data
     if (user == null) {
-      return const Center(child: Text('User not logged in'));
+      return _buildGuestDashboard(context, screenWidth);
     }
+    
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       body: SafeArea(
@@ -130,9 +132,9 @@ class DashboardScreen extends StatelessWidget {
                       Expanded(
                         child: GestureDetector(
                           onTap: () {
-                                    Navigator.pushReplacementNamed(
+                            Navigator.pushNamed(
                               context,
-                                      '/analyticsBasic',
+                              '/analyticsBasic',
                             );
                           },
                           child: _quickCard(
@@ -147,13 +149,27 @@ class DashboardScreen extends StatelessWidget {
                       Expanded(
                         child: GestureDetector(
                           onTap: () {
-                                    Navigator.pushReplacementNamed(context, '/goalScreen');
+                            Navigator.pushNamed(context, '/goalScreen');
                           },
                           child: _quickCard(
                             context,
                             Icons.track_changes,
                             'Goals',
                             'Track progress',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.pushNamed(context, '/aiAssistant');
+                          },
+                          child: _quickCard(
+                            context,
+                            Icons.smart_toy_outlined,
+                            'AI Assistant',
+                            'Chat & manage',
                           ),
                         ),
                       ),
@@ -319,64 +335,6 @@ class DashboardScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  _sectionCard(
-                    context,
-                    title: 'Premium',
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF9DB),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        children: [
-                          const Icon(
-                            Icons.workspace_premium,
-                            color: Colors.orange,
-                            size: 40,
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            'Unlock Premium Features',
-                            style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.bold,
-                              fontSize: screenWidth * 0.045,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Get AI insights, advanced analytics,\nand unlimited goals.',
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.poppins(
-                              fontSize: screenWidth * 0.035,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          ElevatedButton.icon(
-                            onPressed: () {},
-                            icon: const Icon(
-                              Icons.upgrade,
-                              color: Colors.white,
-                            ),
-                            label: const Text('Upgrade Now'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFF39C12),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 12,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(25),
-                              ),
-                            ),
-                          ),
-                        ],
                       ),
                     ),
                   ),
@@ -587,5 +545,371 @@ class DashboardScreen extends StatelessWidget {
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
     return months[monthDate.month - 1];
+  }
+
+  Widget _buildGuestDashboard(BuildContext context, double screenWidth) {
+    // Demo data for guest mode
+    final double totalBalance = 15000.0;
+    final double totalIncome = 25000.0;
+    final double totalExpenses = 10000.0;
+    final double budgetLimit = 12000.0;
+    final double remaining = budgetLimit - totalExpenses;
+    final double progress = totalExpenses / budgetLimit;
+    final Map<String, double> expenseCategories = {
+      'Food': 3000.0,
+      'Transport': 2000.0,
+      'Shopping': 2500.0,
+      'Bills': 2500.0,
+    };
+    final List<double> monthlyIncome = [20000.0, 22000.0, 18000.0, 25000.0, 23000.0, 25000.0];
+    final List<double> monthlyExpense = [8000.0, 9000.0, 7500.0, 10000.0, 9500.0, 10000.0];
+    final maxIncome = monthlyIncome.reduce((a, b) => a > b ? a : b);
+    final maxExpense = monthlyExpense.reduce((a, b) => a > b ? a : b);
+    final maxY = [maxIncome, maxExpense].reduce((a, b) => a > b ? a : b);
+    final chartMaxY = maxY > 0 ? (maxY * 1.2).toDouble() : 1000.0;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF9FAFB),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFF9FAFB),
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        title: Text(
+          'Expenso (Guest)',
+          style: GoogleFonts.poppins(
+            fontSize: screenWidth * 0.045,
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
+        ),
+        actions: [
+          IconButton(
+            onPressed: () {
+              Navigator.pushNamed(context, '/signin');
+            },
+            icon: const Icon(
+              Icons.login,
+              color: Color(0xFF3B82F6),
+            ),
+            tooltip: 'Sign In',
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: EdgeInsets.symmetric(
+                horizontal: screenWidth * 0.04,
+                vertical: screenWidth * 0.05,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Greeting for guest
+                  Text(
+                    'Good morning, Guest',
+                    style: GoogleFonts.poppins(
+                      fontSize: screenWidth * 0.055,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "Here's your financial overview (Demo)",
+                    style: GoogleFonts.poppins(
+                      fontSize: screenWidth * 0.035,
+                      color: Colors.black54,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Login button for guest
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF3B82F6), Color(0xFF60A5FA)],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF3B82F6).withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Sign in to unlock all features',
+                                style: GoogleFonts.poppins(
+                                  color: Colors.white,
+                                  fontSize: screenWidth * 0.04,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Save transactions, track real budgets & more',
+                                style: GoogleFonts.poppins(
+                                  color: Colors.white70,
+                                  fontSize: screenWidth * 0.03,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.pushNamed(context, '/signin');
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'Sign In',
+                              style: GoogleFonts.poppins(
+                                color: const Color(0xFF3B82F6),
+                                fontSize: screenWidth * 0.035,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  _balanceCard(
+                    context,
+                    totalBalance,
+                    totalIncome,
+                    totalExpenses,
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.pushNamed(
+                              context,
+                              '/analyticsBasic',
+                            );
+                          },
+                          child: _quickCard(
+                            context,
+                            Icons.show_chart,
+                            'Analytics',
+                            'View insights',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.pushNamed(context, '/goalScreen');
+                          },
+                          child: _quickCard(
+                            context,
+                            Icons.track_changes,
+                            'Goals',
+                            'Track progress',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  _sectionCard(
+                    context,
+                    title: 'Budget Overview',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Monthly Budget'),
+                            Text('PKR ${budgetLimit.toStringAsFixed(0)}'),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        LinearProgressIndicator(
+                          value: progress,
+                          backgroundColor: Colors.grey.shade300,
+                          valueColor: const AlwaysStoppedAnimation(
+                            Color(0xFF3B82F6),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Used: ${(progress * 100).toStringAsFixed(0)}%',
+                              style: const TextStyle(color: Colors.black54),
+                            ),
+                            Text(
+                              'Remaining: PKR ${remaining.toStringAsFixed(0)}',
+                              style: const TextStyle(color: Colors.green),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  _sectionCard(
+                    context,
+                    title: 'Expense Breakdown',
+                    child: SizedBox(
+                      height: screenWidth * 0.5,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: screenWidth * 0.3,
+                            child: PieChart(
+                              PieChartData(
+                                sectionsSpace: 2,
+                                centerSpaceRadius: 35,
+                                sections: _buildPieChartSections(
+                                  expenseCategories,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 24),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: expenseCategories.entries
+                                  .map(
+                                    (entry) => _expenseLegend(
+                                      entry.key,
+                                      entry.value,
+                                      _getColor(entry.key),
+                                    ),
+                                  )
+                                  .toList(),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  _sectionCard(
+                    context,
+                    title: 'Monthly Trends',
+                    child: SizedBox(
+                      height: screenWidth * 0.55,
+                      child: BarChart(
+                        BarChartData(
+                          maxY: chartMaxY,
+                          alignment: BarChartAlignment.spaceAround,
+                          barGroups: _buildBarGroups(
+                            monthlyIncome,
+                            monthlyExpense,
+                          ),
+                          gridData: FlGridData(show: false),
+                          borderData: FlBorderData(show: false),
+                          titlesData: FlTitlesData(
+                            leftTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 48,
+                                interval: chartMaxY / 4,
+                                getTitlesWidget: (value, meta) {
+                                  final max = chartMaxY;
+                                  if (value == 0) {
+                                    return Text('PKR 0', style: TextStyle(color: Colors.black45, fontSize: 11, fontWeight: FontWeight.w600));
+                                  }
+                                  if ((value - max).abs() < 1) {
+                                    String label;
+                                    if (max >= 1000000) {
+                                      label = 'PKR ${(max / 1000000).toStringAsFixed(1)}M';
+                                    } else if (max >= 1000) {
+                                      label = 'PKR ${(max / 1000).toStringAsFixed(1)}k';
+                                    } else {
+                                      label = 'PKR ${max.toInt()}';
+                                    }
+                                    return Text(label, style: TextStyle(color: Colors.black87, fontSize: 12, fontWeight: FontWeight.bold));
+                                  }
+                                  if (value == max / 2) {
+                                    return Text(
+                                      max >= 1000000
+                                        ? '${(max / 2 / 1000000).toStringAsFixed(1)}M'
+                                        : max >= 1000
+                                          ? '${(max / 2 / 1000).toStringAsFixed(1)}k'
+                                          : '${(max / 2).toInt()}',
+                                      style: TextStyle(color: Colors.black45, fontSize: 11),
+                                    );
+                                  }
+                                  if (value == max / 4 || value == 3 * max / 4) {
+                                    return Text(
+                                      max >= 1000000
+                                        ? '${(value / 1000000).toStringAsFixed(1)}M'
+                                        : max >= 1000
+                                          ? '${(value / 1000).toStringAsFixed(1)}k'
+                                          : '${value.toInt()}',
+                                      style: TextStyle(color: Colors.black38, fontSize: 10),
+                                    );
+                                  }
+                                  return const SizedBox.shrink();
+                                },
+                              ),
+                            ),
+                            bottomTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                getTitlesWidget: (value, _) => Padding(
+                                  padding: const EdgeInsets.only(top: 8.0),
+                                  child: Text(
+                                    _monthLabel(value.toInt()),
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            rightTitles: AxisTitles(
+                              sideTitles: SideTitles(showTitles: false),
+                            ),
+                            topTitles: AxisTitles(
+                              sideTitles: SideTitles(showTitles: false),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+      bottomNavigationBar: AppBottomNavBar(currentIndex: 0),
+    );
   }
 }

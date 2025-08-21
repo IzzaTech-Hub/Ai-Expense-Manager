@@ -69,7 +69,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("User not logged in")),
+          SnackBar(
+            content: const Text("Please sign in to add real transactions"),
+            action: SnackBarAction(
+              label: 'Sign In',
+              onPressed: () {
+                Navigator.pushNamed(context, '/signin');
+              },
+            ),
+          ),
         );
         return;
       }
@@ -145,7 +153,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: BackButton(color: Colors.black),
+        automaticallyImplyLeading: false,
         centerTitle: true,
         title: Text(
           'Add Transaction',

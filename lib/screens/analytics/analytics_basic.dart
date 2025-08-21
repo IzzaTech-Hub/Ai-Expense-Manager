@@ -13,16 +13,19 @@ class AnalyticsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
+    final user = AuthService().currentUser;
+
+    // If user is not logged in (guest mode), show demo data
+    if (user == null) {
+      return _buildGuestAnalytics(context, screenWidth, screenHeight);
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
         backgroundColor: const Color(0xFFF9FAFB),
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: false,
         centerTitle: true,
         title: Text(
           'Analytics',
@@ -132,15 +135,18 @@ class AnalyticsScreen extends StatelessWidget {
             SizedBox(height: screenWidth * 0.015),
             Row(
               children: [
-                Text(
-                  amount,
-                  style: GoogleFonts.poppins(
-                    fontSize: screenWidth * 0.055,
-                    fontWeight: FontWeight.bold,
-                    color: iconColor,
+                Flexible(
+                  child: Text(
+                    amount,
+                    style: GoogleFonts.poppins(
+                      fontSize: screenWidth * 0.055,
+                      fontWeight: FontWeight.bold,
+                      color: iconColor,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 4),
                 Icon(icon, size: screenWidth * 0.055, color: iconColor),
               ],
             ),
@@ -786,5 +792,207 @@ class AnalyticsScreen extends StatelessWidget {
     for (var doc in transactions.docs) {
       await doc.reference.delete();
     }
+  }
+
+  Widget _buildGuestAnalytics(BuildContext context, double screenWidth, double screenHeight) {
+    // Demo data for guest mode
+    final demoCategories = [
+      {
+        'label': 'Food',
+        'spent': 3000.0,
+        'allocated': 4000.0,
+        'percent': 75.0,
+        'color': Colors.red,
+      },
+      {
+        'label': 'Transport',
+        'spent': 2000.0,
+        'allocated': 2500.0,
+        'percent': 80.0,
+        'color': Colors.blue,
+      },
+      {
+        'label': 'Shopping',
+        'spent': 2500.0,
+        'allocated': 3000.0,
+        'percent': 83.3,
+        'color': Colors.green,
+      },
+      {
+        'label': 'Bills',
+        'spent': 2500.0,
+        'allocated': 2500.0,
+        'percent': 100.0,
+        'color': Colors.orange,
+      },
+    ];
+
+    final demoIncomeCategories = [
+      {
+        'label': 'Salary',
+        'spent': 50000.0,
+        'allocated': 60000.0,
+        'percent': 83.3,
+        'color': Colors.green,
+      },
+      {
+        'label': 'Freelance',
+        'spent': 15000.0,
+        'allocated': 60000.0,
+        'percent': 25.0,
+        'color': Colors.blue,
+      },
+    ];
+
+    final demoMonthlyTrends = [
+      {
+        'month': '2024-10',
+        'income': 55000.0,
+        'expenses': 40000.0,
+      },
+      {
+        'month': '2024-11',
+        'income': 60000.0,
+        'expenses': 45000.0,
+      },
+      {
+        'month': '2024-12',
+        'income': 65000.0,
+        'expenses': 50000.0,
+      },
+    ];
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF9FAFB),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFF9FAFB),
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        centerTitle: true,
+        title: Text(
+          'Analytics (Demo)',
+          style: GoogleFonts.poppins(
+            fontSize: screenWidth * 0.045,
+            fontWeight: FontWeight.w600,
+            color: Colors.black,
+          ),
+        ),
+      ),
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: EdgeInsets.all(screenWidth * 0.04),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Demo insights into your spending patterns',
+                    style: GoogleFonts.poppins(fontSize: screenWidth * 0.032),
+                  ),
+                  SizedBox(height: screenHeight * 0.02),
+                  Row(
+                    children: [
+                      _summaryCard(
+                        title: 'Total Spent',
+                        amount: 'PKR 10,000',
+                        icon: Icons.arrow_downward,
+                        iconColor: Colors.red,
+                        subtext: 'This month',
+                        borderColor: Colors.yellow,
+                        screenWidth: screenWidth,
+                      ),
+                      SizedBox(width: screenWidth * 0.03),
+                      _summaryCard(
+                        title: 'Daily Average',
+                        amount: 'PKR 333',
+                        icon: Icons.bar_chart,
+                        iconColor: Colors.blue,
+                        subtext: 'Per day',
+                        borderColor: Colors.yellow,
+                        screenWidth: screenWidth,
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: screenHeight * 0.03),
+                  Text(
+                    'Spending by Category',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      fontSize: screenWidth * 0.04,
+                    ),
+                  ),
+                  SizedBox(height: screenHeight * 0.015),
+                  _categoryListWithActions(
+                    demoCategories,
+                    showActions: false,
+                    screenWidth: screenWidth,
+                    screenHeight: screenHeight,
+                  ),
+                  SizedBox(height: screenHeight * 0.03),
+                  Text(
+                    'Income by Category',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      fontSize: screenWidth * 0.04,
+                    ),
+                  ),
+                  SizedBox(height: screenHeight * 0.015),
+                  _categoryListWithActions(
+                    demoIncomeCategories,
+                    showActions: false,
+                    screenWidth: screenWidth,
+                    screenHeight: screenHeight,
+                  ),
+                  SizedBox(height: screenHeight * 0.03),
+                  Text(
+                    'Monthly Trends',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      fontSize: screenWidth * 0.04,
+                    ),
+                  ),
+                  SizedBox(height: screenHeight * 0.015),
+                  _monthlyTrendsList(demoMonthlyTrends, screenWidth, screenHeight),
+                  SizedBox(height: screenHeight * 0.02),
+                  Container(
+                    padding: EdgeInsets.all(screenWidth * 0.04),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.blue.shade700),
+                        SizedBox(width: screenWidth * 0.03),
+                        Expanded(
+                          child: Text(
+                            'This is demo data. Sign in to see your real analytics!',
+                            style: GoogleFonts.poppins(
+                              fontSize: screenWidth * 0.035,
+                              color: Colors.blue.shade700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+      bottomNavigationBar: AppBottomNavBar(currentIndex: 1),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.pushNamed(context, '/addTransaction');
+        },
+        backgroundColor: const Color(0xFF3B82F6),
+        child: const Icon(Icons.add, size: 28),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+    );
   }
 }

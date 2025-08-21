@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../widgets/app_bottom_nav_bar.dart';
 
 class AppBottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -16,19 +15,39 @@ class AppBottomNavBar extends StatelessWidget {
         if (index == currentIndex) return;
         switch (index) {
           case 0:
-            Navigator.pushReplacementNamed(context, '/dashboardBasic');
+            Navigator.pushNamedAndRemoveUntil(
+              context, 
+              '/dashboardBasic', 
+              (route) => false,
+            );
             break;
           case 1:
-            Navigator.pushReplacementNamed(context, '/analyticsBasic');
+            Navigator.pushNamedAndRemoveUntil(
+              context, 
+              '/analyticsBasic', 
+              (route) => false,
+            );
             break;
           case 2:
-            Navigator.pushReplacementNamed(context, '/addTransaction');
+            Navigator.pushNamedAndRemoveUntil(
+              context, 
+              '/addTransaction', 
+              (route) => false,
+            );
             break;
           case 3:
-            Navigator.pushReplacementNamed(context, '/budgetScreenBasic');
+            Navigator.pushNamedAndRemoveUntil(
+              context, 
+              '/budgetScreenBasic', 
+              (route) => false,
+            );
             break;
           case 4:
-            Navigator.pushReplacementNamed(context, '/profileScreen');
+            Navigator.pushNamedAndRemoveUntil(
+              context, 
+              '/profileScreen', 
+              (route) => false,
+            );
             break;
         }
       },

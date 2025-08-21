@@ -14,9 +14,12 @@ class BudgetScreenBasic extends StatelessWidget {
   Widget build(BuildContext context) {
     final AuthService _authService = AuthService();
     final user = _authService.currentUser;
+    
+    // If user is not logged in (guest mode), show demo data
     if (user == null) {
-      return const Center(child: Text('User not logged in'));
+      return _buildGuestBudget(context);
     }
+    
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
@@ -243,17 +246,24 @@ class BudgetScreenBasic extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                '${(percentUsed * 100).toStringAsFixed(0)}% Used',
-                style: GoogleFonts.poppins(fontSize: 12, color: Colors.black87),
+              Flexible(
+                child: Text(
+                  '${(percentUsed * 100).toStringAsFixed(0)}% Used',
+                  style: GoogleFonts.poppins(fontSize: 12, color: Colors.black87),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              Text(
-                isOver
-                    ? 'Over: PKR ${(cat.spent - cat.allocated).toStringAsFixed(0)}'
-                    : 'Remaining: PKR ${cat.remaining.toStringAsFixed(0)}',
-                style: GoogleFonts.poppins(
-                  fontSize: 12,
-                  color: isOver ? Colors.red : Colors.green,
+              Flexible(
+                child: Text(
+                  isOver
+                      ? 'Over: PKR ${(cat.spent - cat.allocated).toStringAsFixed(0)}'
+                      : 'Remaining: PKR ${cat.remaining.toStringAsFixed(0)}',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: isOver ? Colors.red : Colors.green,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
                 ),
               ),
             ],
@@ -311,6 +321,230 @@ class BudgetScreenBasic extends StatelessWidget {
               style: GoogleFonts.poppins(fontSize: 13),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGuestBudget(BuildContext context) {
+    // Demo budget categories for guest mode
+    final demoBudgets = [
+      {
+        'name': 'Food & Dining',
+        'allocated': 4000.0,
+        'spent': 3000.0,
+        'color': Colors.red,
+      },
+      {
+        'name': 'Transportation',
+        'allocated': 2500.0,
+        'spent': 2000.0,
+        'color': Colors.blue,
+      },
+      {
+        'name': 'Shopping',
+        'allocated': 3000.0,
+        'spent': 2500.0,
+        'color': Colors.green,
+      },
+      {
+        'name': 'Bills & Utilities',
+        'allocated': 2500.0,
+        'spent': 2500.0,
+        'color': Colors.orange,
+      },
+    ];
+
+    final totalAllocated = demoBudgets.fold(0.0, (sum, budget) => sum + (budget['allocated'] as double));
+    final totalSpent = demoBudgets.fold(0.0, (sum, budget) => sum + (budget['spent'] as double));
+    final totalProgress = totalAllocated > 0 ? totalSpent / totalAllocated : 0.0;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF9FAFB),
+      appBar: AppBar(
+        title: Text(
+          'Budget (Demo)',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: ElevatedButton.icon(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Sign in to add real budgets!'),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Add Budget'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF3B82F6),
+                foregroundColor: Colors.white,
+                textStyle: GoogleFonts.poppins(),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _headerCard(totalAllocated, totalSpent, totalAllocated - totalSpent, totalProgress),
+            const SizedBox(height: 24),
+            Text(
+              'Budget Categories (Demo)',
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ...demoBudgets.map((budget) => Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: _demoBudgetCard(budget),
+            )).toList(),
+            const SizedBox(height: 16),
+            _budgetTip(),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.blue.shade700),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'This is demo data. Sign in to create and track real budgets!',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: Colors.blue.shade700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: AppBottomNavBar(currentIndex: 3),
+    );
+  }
+
+  Widget _demoBudgetCard(Map<String, dynamic> budget) {
+    final name = budget['name'] as String;
+    final allocated = budget['allocated'] as double;
+    final spent = budget['spent'] as double;
+    final color = budget['color'] as Color;
+    
+    final percentUsed = allocated > 0 ? spent / allocated : 0.0;
+    final isOver = percentUsed > 1.0;
+    final isWarning = percentUsed > 0.9;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        border: Border.all(color: Colors.yellow.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  name,
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+              Text(
+                'PKR ${(allocated - spent).toStringAsFixed(0)} left',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: isOver ? Colors.red : Colors.green,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: percentUsed.clamp(0.0, 1.0),
+              minHeight: 8,
+              backgroundColor: Colors.grey.shade200,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                isOver ? Colors.red : (isWarning ? Colors.orange : color),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Flexible(
+                child: Text(
+                  'Allocated: PKR ${allocated.toStringAsFixed(0)}',
+                  style: GoogleFonts.poppins(fontSize: 12, color: Colors.black54),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Flexible(
+                child: Text(
+                  'Spent: PKR ${spent.toStringAsFixed(0)}',
+                  style: GoogleFonts.poppins(fontSize: 12, color: Colors.black54),
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                ),
+              ),
+            ],
+          ),
+          if (isOver || isWarning)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Row(
+                children: [
+                  const Icon(Icons.warning, size: 14, color: Colors.orange),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Budget warning: ${(percentUsed * 100).toStringAsFixed(0)}% used',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: Colors.orange,
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
