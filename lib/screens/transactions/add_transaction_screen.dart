@@ -61,6 +61,37 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     }
   }
 
+  void _showNoBudgetDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('No Budget Found'),
+          content: Text(
+            'There is no budget set for the "${_selectedCategory}" category. You need to create a budget first before adding expenses.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, AppRoutes.addBudgetCategory);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF3B82F6),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Add Budget'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _submit() async {
     if (_formKey.currentState!.validate()) {
       if (_selectedCategory == null) {
@@ -78,9 +109,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         final budgetExists = budgets.any((budget) => budget.name == _selectedCategory);
         
         if (!budgetExists) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("There is no budget for this category.")),
-          );
+          _showNoBudgetDialog();
           return;
         }
       }
@@ -151,10 +180,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: false,
         title: Text(
           'Add Transaction',
           style: GoogleFonts.poppins(
@@ -211,7 +237,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
                     hintText: 'Enter amount',
-                    prefixText: 'PKR ',
+                    prefixText: '\$ ',
                     filled: true,
                     fillColor: Colors.white,
                     border: OutlineInputBorder(
@@ -318,67 +344,88 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
                 const SizedBox(height: 40),
 
-                // Submit Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: _isSaving ? null : _submit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3B82F6),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: _isSaving
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : Text(
-                            'Add Transaction',
-                            style: GoogleFonts.poppins(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                  ),
-                ),
-
-                const SizedBox(height: 80),
+                // Add bottom padding to account for fixed button
+                const SizedBox(height: 100),
               ],
             ),
           ),
         ),
       ),
-              bottomNavigationBar: AppBottomNavBar(
-          currentIndex: 2,
-          onTap: (index) {
-            switch (index) {
-              case 0:
-                Navigator.pushReplacementNamed(context, AppRoutes.dashboard);
-                break;
-              case 1:
-                Navigator.pushReplacementNamed(context, AppRoutes.analytics);
-                break;
-              case 2:
-                // Already on add transaction
-                break;
-              case 3:
-                Navigator.pushReplacementNamed(context, AppRoutes.budget);
-                break;
-              case 4:
-                Navigator.pushReplacementNamed(context, AppRoutes.aiAssistant);
-                break;
-            }
-          },
-        ),
+      // Fixed Add Transaction Button above bottom navigation
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Fixed Button Container
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            ),
+            child: SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton(
+                onPressed: _isSaving ? null : _submit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF3B82F6),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
+                child: _isSaving
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : Text(
+                        'Add Transaction',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+              ),
+            ),
+          ),
+                    // Bottom Navigation Bar
+          AppBottomNavBar(
+            currentIndex: 2,
+            onTap: (index) {
+              switch (index) {
+                case 0:
+                  Navigator.pushReplacementNamed(context, AppRoutes.dashboard);
+                  break;
+                case 1:
+                  Navigator.pushReplacementNamed(context, AppRoutes.analytics);
+                  break;
+                case 2:
+                  // Already on add transaction
+                  break;
+                case 3:
+                  Navigator.pushReplacementNamed(context, AppRoutes.budget);
+                  break;
+                case 4:
+                  Navigator.pushReplacementNamed(context, AppRoutes.aiAssistant);
+                  break;
+              }
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -434,7 +481,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio: 3.5,
+        childAspectRatio: 2.2,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
       ),
@@ -465,7 +512,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 ),
               ],
             ),
-            child: Row(
+            child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
@@ -473,17 +520,16 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   color: isSelected ? category.color : Colors.grey[600],
                   size: 24,
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    category.name,
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                      color: isSelected ? category.color : Colors.black87,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+                const SizedBox(height: 8),
+                Text(
+                  category.name,
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                    color: isSelected ? category.color : Colors.black87,
                   ),
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),

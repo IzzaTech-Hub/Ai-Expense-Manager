@@ -226,7 +226,7 @@ class _GoalScreenBasicState extends State<GoalScreenBasic> {
                       ),
                     ),
                     Text(
-                      'PKR ${NumberFormat('#,###').format(totalTarget)}',
+                      '\$${NumberFormat('#,###').format(totalTarget)}',
                       style: GoogleFonts.poppins(
                         color: Colors.white,
                         fontSize: 20,
@@ -248,7 +248,7 @@ class _GoalScreenBasicState extends State<GoalScreenBasic> {
                       ),
                     ),
                     Text(
-                      'PKR ${NumberFormat('#,###').format(totalCurrent)}',
+                      '\$${NumberFormat('#,###').format(totalCurrent)}',
                       style: GoogleFonts.poppins(
                         color: Colors.white,
                         fontSize: 20,
@@ -388,7 +388,7 @@ class _GoalScreenBasicState extends State<GoalScreenBasic> {
               children: [
                 Expanded(
                   child: Text(
-                    'PKR ${NumberFormat('#,###').format(goal.currentAmount)} / PKR ${NumberFormat('#,###').format(goal.targetAmount)}',
+                    '\$${NumberFormat('#,###').format(goal.currentAmount)} / \$${NumberFormat('#,###').format(goal.targetAmount)}',
                     style: GoogleFonts.poppins(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
@@ -458,7 +458,7 @@ class _GoalScreenBasicState extends State<GoalScreenBasic> {
             if (!isCompleted && remaining > 0) ...[
               const SizedBox(height: 8),
               Text(
-                'PKR ${NumberFormat('#,###').format(remaining)} remaining',
+                '\$${NumberFormat('#,###').format(remaining)} remaining',
                 style: GoogleFonts.poppins(
                   fontSize: 12,
                   color: Colors.grey[600],

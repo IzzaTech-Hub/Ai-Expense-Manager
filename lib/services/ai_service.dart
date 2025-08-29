@@ -14,7 +14,7 @@ class AIService {
   late final GenerativeModel _model;
   final DatabaseService _databaseService = DatabaseService();
 
-  AIService({String modelName = AIConfig.modelName, String? apiKey}) {
+  AIService({String? modelName, String? apiKey}) {
     // Get API key from ApiKeyPool or use provided key
     String key;
     try {
@@ -42,8 +42,11 @@ class AIService {
       throw Exception('Invalid API key configuration');
     }
     
-    _model = GenerativeModel(model: modelName, apiKey: key);
-    print('AI Service: Initialized with model: $modelName');
+    // Get model name from parameter or fallback to AIConfig
+    final modelToUse = modelName ?? AIConfig.modelName;
+    
+    _model = GenerativeModel(model: modelToUse, apiKey: key);
+    print('AI Service: Initialized with model: $modelToUse');
     print('AI Service: API key length: ${key.length}');
     print('AI Service: Base URL: ${AIConfig.baseUrl}');
   }
@@ -345,11 +348,11 @@ class AIService {
     for (var category in categories) {
       final remaining = category.allocated - category.spent;
       final percentage = (category.spent / category.allocated * 100).toStringAsFixed(1);
-      response += "• ${category.name}: PKR ${category.spent.toStringAsFixed(0)} / PKR ${category.allocated.toStringAsFixed(0)} (${percentage}%)\n";
+              response += "• ${category.name}: \$${category.spent.toStringAsFixed(0)} / \$${category.allocated.toStringAsFixed(0)} (${percentage}%)\n";
       if (remaining < 0) {
-        response += "  ⚠️ Over budget by PKR ${remaining.abs().toStringAsFixed(0)}\n";
+                  response += "  ⚠️ Over budget by \$${remaining.abs().toStringAsFixed(0)}\n";
       } else {
-        response += "  ✅ PKR ${remaining.toStringAsFixed(0)} remaining\n";
+                  response += "  ✅ \$${remaining.toStringAsFixed(0)} remaining\n";
       }
       response += "\n";
     }
@@ -394,9 +397,9 @@ class AIService {
         String response = "✅ Successfully updated existing budget category!\n\n";
         response += "🔍 Category corrected from '$name' to '$matchedCategory'\n";
         response += "• Category: $matchedCategory\n";
-        response += "• Amount added: PKR ${amount.toStringAsFixed(0)}\n";
-        response += "• New total allocation: PKR ${updatedCategory.allocated.toStringAsFixed(0)}\n";
-        response += "• Current spending: PKR ${updatedCategory.spent.toStringAsFixed(0)}";
+        response += "• Amount added: \$${amount.toStringAsFixed(0)}\n";
+        response += "• New total allocation: \$${updatedCategory.allocated.toStringAsFixed(0)}\n";
+        response += "• Current spending: \$${updatedCategory.spent.toStringAsFixed(0)}";
         
         return response;
       } else {
@@ -418,7 +421,7 @@ class AIService {
           response += "\n\n🔍 Category corrected from '$name' to '$matchedCategory'";
         }
         response += "\n\n• Category: ${wasCorrected ? matchedCategory : name}";
-        response += "\n• Allocation: PKR ${amount.toStringAsFixed(0)}";
+        response += "\n• Allocation: \$${amount.toStringAsFixed(0)}";
         response += "\n\nYou can now track your spending in this category. The budget will show how much you've spent vs. how much you've allocated.";
         
         return response;
@@ -491,16 +494,16 @@ class AIService {
       response += "\n\n";
       
       if (updateMode == 'set') {
-        response += "Budget set to: PKR ${newAmount.toStringAsFixed(0)}";
+        response += "Budget set to: \$${newAmount.toStringAsFixed(0)}";
       } else if (updateMode == 'increment') {
-        response += "Budget increased by: PKR ${amount.toStringAsFixed(0)}\n";
-        response += "New total: PKR ${newAmount.toStringAsFixed(0)}";
+                  response += "Budget increased by: \$${amount.toStringAsFixed(0)}\n";
+                  response += "New total: \$${newAmount.toStringAsFixed(0)}";
       } else {
-        response += "Budget updated to: PKR ${newAmount.toStringAsFixed(0)}";
+                  response += "Budget updated to: \$${newAmount.toStringAsFixed(0)}";
       }
       
-      response += "\n\n💰 Current spending: PKR ${existingCategory.spent.toStringAsFixed(0)}";
-      response += "\n📊 Remaining: PKR ${(newAmount - existingCategory.spent).toStringAsFixed(0)}";
+              response += "\n\n💰 Current spending: \$${existingCategory.spent.toStringAsFixed(0)}";
+              response += "\n📊 Remaining: \$${(newAmount - existingCategory.spent).toStringAsFixed(0)}";
       
       return response;
     } catch (e) {
@@ -576,7 +579,7 @@ class AIService {
         response += "🔍 Category corrected from '$category' to '$matchedCategory'\n";
       }
       response += "• Category: $matchedCategory\n";
-      response += "• Amount: PKR ${amount.toStringAsFixed(0)}\n";
+              response += "• Amount: \$${amount.toStringAsFixed(0)}\n";
       response += "• Date: ${DateFormat('MMM dd, yyyy').format(transactionDate)}\n";
       if (notes != null && notes.isNotEmpty) response += "• Notes: $notes\n";
       
@@ -672,7 +675,7 @@ class AIService {
       }
       response += "\n\n";
       response += "• Category: $matchedCategory\n";
-      response += "• Amount: PKR ${latestTransaction.amount.toStringAsFixed(0)}\n";
+              response += "• Amount: \$${latestTransaction.amount.toStringAsFixed(0)}\n";
       response += "• Type: ${latestTransaction.type}\n";
       response += "• Date: ${DateFormat('MMM dd, yyyy').format(latestTransaction.date)}\n\n";
       response += "💰 Your budget has been updated accordingly.";
@@ -788,9 +791,9 @@ class AIService {
       }
 
       String response = "Here's your financial summary:\n\n";
-      response += "💰 Total Income: PKR ${totalIncome.toStringAsFixed(0)}\n";
-      response += "💸 Total Expenses: PKR ${totalExpenses.toStringAsFixed(0)}\n";
-      response += "💵 Net Balance: PKR ${(totalIncome - totalExpenses).toStringAsFixed(0)}\n";
+              response += "💰 Total Income: \$${totalIncome.toStringAsFixed(0)}\n";
+              response += "💸 Total Expenses: \$${totalExpenses.toStringAsFixed(0)}\n";
+              response += "💵 Net Balance: \$${(totalIncome - totalExpenses).toStringAsFixed(0)}\n";
       
       return response;
     } catch (e) {
@@ -879,12 +882,12 @@ class AIService {
       }
 
       if (category != null) {
-        response += "Total spent on $category: PKR ${totalSpent.toStringAsFixed(0)}\n";
+        response += "Total spent on $category: \$${totalSpent.toStringAsFixed(0)}\n";
       } else {
-        response += "Total expenses: PKR ${totalSpent.toStringAsFixed(0)}\n\n";
+                  response += "Total expenses: \$${totalSpent.toStringAsFixed(0)}\n\n";
         response += "By category:\n";
         categoryTotals.forEach((cat, amount) {
-          response += "• $cat: PKR ${amount.toStringAsFixed(0)}\n";
+                      response += "• $cat: \$${amount.toStringAsFixed(0)}\n";
         });
       }
       

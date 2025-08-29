@@ -187,7 +187,7 @@ class _CreateGoalBasicState extends State<CreateGoalBasic> {
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
                     hintText: 'Enter target amount',
-                    prefixText: 'PKR ',
+                    prefixText: '\$ ',
                     filled: true,
                     fillColor: Colors.white,
                     border: OutlineInputBorder(

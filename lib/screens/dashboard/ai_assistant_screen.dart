@@ -437,16 +437,18 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: _chatHistory.isEmpty
-                ? _buildWelcomeMessage()
-                : _buildChatList(),
-          ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: _chatHistory.isEmpty
+                  ? _buildWelcomeMessage()
+                  : _buildChatList(),
+            ),
 
-          _buildInputArea(),
-        ],
+            _buildInputArea(),
+          ],
+        ),
       ),
     );
   }

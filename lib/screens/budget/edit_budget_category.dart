@@ -161,9 +161,10 @@ class _EditBudgetCategoryState extends State<EditBudgetCategory> {
             ),
         ],
       ),
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
+      body: SafeArea(
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
           padding: EdgeInsets.all(isLargeScreen ? 32 : 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -213,7 +214,7 @@ class _EditBudgetCategoryState extends State<EditBudgetCategory> {
                                 ),
                               ),
                               Text(
-                                'PKR ${widget.initialLimit.toStringAsFixed(0)}',
+                                '\$${widget.initialLimit.toStringAsFixed(0)}',
                                 style: GoogleFonts.poppins(
                                   color: Colors.white,
                                   fontSize: 20,
@@ -235,7 +236,7 @@ class _EditBudgetCategoryState extends State<EditBudgetCategory> {
                                 ),
                               ),
                               Text(
-                                'PKR ${widget.spentAmount.toStringAsFixed(0)}',
+                                '\$${widget.spentAmount.toStringAsFixed(0)}',
                                 style: GoogleFonts.poppins(
                                   color: Colors.white,
                                   fontSize: 20,
@@ -257,7 +258,7 @@ class _EditBudgetCategoryState extends State<EditBudgetCategory> {
                                 ),
                               ),
                               Text(
-                                'PKR ${(widget.initialLimit - widget.spentAmount).toStringAsFixed(0)}',
+                                '\$${(widget.initialLimit - widget.spentAmount).toStringAsFixed(0)}',
                                 style: GoogleFonts.poppins(
                                   color: (widget.initialLimit - widget.spentAmount) >= 0 
                                       ? Colors.white 
@@ -405,7 +406,7 @@ class _EditBudgetCategoryState extends State<EditBudgetCategory> {
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   hintText: 'Enter new budget limit',
-                  prefixText: 'PKR ',
+                                      prefixText: '\$ ',
                   filled: true,
                   fillColor: Colors.white,
                   border: OutlineInputBorder(
@@ -477,6 +478,7 @@ class _EditBudgetCategoryState extends State<EditBudgetCategory> {
               const SizedBox(height: 32),
             ],
           ),
+        ),
         ),
       ),
     );

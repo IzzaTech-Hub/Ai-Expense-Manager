@@ -85,6 +85,7 @@ class _BudgetScreenBasicState extends State<BudgetScreenBasic> with WidgetsBindi
         ),
         backgroundColor: Colors.white,
         elevation: 0,
+        automaticallyImplyLeading: false,
         actions: [
           LayoutBuilder(
             builder: (context, constraints) {
@@ -122,63 +123,65 @@ class _BudgetScreenBasicState extends State<BudgetScreenBasic> with WidgetsBindi
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _refreshData,
-        child: _budgetCategories.isEmpty
-            ? LayoutBuilder(
-                builder: (context, constraints) {
-                  return SingleChildScrollView(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minHeight: constraints.maxHeight,
-                      ),
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.account_balance_wallet_outlined,
-                              size: constraints.maxHeight < 600 ? 60 : 80,
-                              color: Colors.grey[400],
-                            ),
-                            SizedBox(height: constraints.maxHeight < 600 ? 12 : 16),
-                            Text(
-                              'No budget categories found',
-                              style: GoogleFonts.poppins(
-                                fontSize: constraints.maxHeight < 600 ? 16 : 18,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey[700],
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _refreshData,
+          child: _budgetCategories.isEmpty
+              ? LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight,
+                        ),
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.account_balance_wallet_outlined,
+                                size: constraints.maxHeight < 600 ? 60 : 80,
+                                color: Colors.grey[400],
                               ),
-                            ),
-                            SizedBox(height: constraints.maxHeight < 600 ? 6 : 8),
-                            Text(
-                              'Tap the "+" button to add your first budget',
-                              style: GoogleFonts.poppins(
-                                fontSize: constraints.maxHeight < 600 ? 12 : 14,
-                                color: Colors.grey[600],
+                              SizedBox(height: constraints.maxHeight < 600 ? 12 : 16),
+                              Text(
+                                'No budget categories found',
+                                style: GoogleFonts.poppins(
+                                  fontSize: constraints.maxHeight < 600 ? 16 : 18,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey[700],
+                                ),
                               ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
+                              SizedBox(height: constraints.maxHeight < 600 ? 6 : 8),
+                              Text(
+                                'Tap the "+" button to add your first budget',
+                                style: GoogleFonts.poppins(
+                                  fontSize: constraints.maxHeight < 600 ? 12 : 14,
+                                  color: Colors.grey[600],
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  );
-                },
-              )
-            : ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  _headerCard(),
-                  const SizedBox(height: 20),
-                  ..._budgetCategories.map((cat) => _categoryCard(context, cat)),
-                  const SizedBox(height: 20),
-                  _budgetTip(),
-                  const SizedBox(height: 60), // Reduced bottom padding
-                ],
-              ),
+                    );
+                  },
+                )
+              : ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    _headerCard(),
+                    const SizedBox(height: 20),
+                    ..._budgetCategories.map((cat) => _categoryCard(context, cat)),
+                    const SizedBox(height: 20),
+                    _budgetTip(),
+                    const SizedBox(height: 60), // Reduced bottom padding
+                  ],
+                ),
+        ),
       ),
-              bottomNavigationBar: AppBottomNavBar(
+      bottomNavigationBar: AppBottomNavBar(
           currentIndex: 3,
           onTap: (index) {
             switch (index) {
@@ -252,7 +255,7 @@ class _BudgetScreenBasicState extends State<BudgetScreenBasic> with WidgetsBindi
                       ),
                     ),
                     Text(
-                      'PKR ${totalAllocated.toStringAsFixed(0)}',
+                      '\$${totalAllocated.toStringAsFixed(0)}',
                       style: GoogleFonts.poppins(
                         color: Colors.white,
                         fontSize: 20,
@@ -274,7 +277,7 @@ class _BudgetScreenBasicState extends State<BudgetScreenBasic> with WidgetsBindi
                       ),
                     ),
                     Text(
-                      'PKR ${totalSpent.toStringAsFixed(0)}',
+                      '\$${totalSpent.toStringAsFixed(0)}',
                       style: GoogleFonts.poppins(
                         color: Colors.white,
                         fontSize: 20,
@@ -296,7 +299,7 @@ class _BudgetScreenBasicState extends State<BudgetScreenBasic> with WidgetsBindi
                       ),
                     ),
                     Text(
-                      'PKR ${remaining.toStringAsFixed(0)}',
+                      '\$${remaining.toStringAsFixed(0)}',
                   style: GoogleFonts.poppins(
                         color: remaining >= 0 ? Colors.white : Colors.red[200],
                         fontSize: 20,
@@ -396,7 +399,7 @@ class _BudgetScreenBasicState extends State<BudgetScreenBasic> with WidgetsBindi
               children: [
                 Expanded(
                   child: Text(
-                    'PKR ${category.spent.toStringAsFixed(0)} / PKR ${category.allocated.toStringAsFixed(0)}',
+                    '\$${category.spent.toStringAsFixed(0)} / \$${category.allocated.toStringAsFixed(0)}',
                     style: GoogleFonts.poppins(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
@@ -425,8 +428,8 @@ class _BudgetScreenBasicState extends State<BudgetScreenBasic> with WidgetsBindi
             const SizedBox(height: 8),
             Text(
               isOverBudget
-                  ? 'Over budget by PKR ${remaining.abs().toStringAsFixed(0)}'
-                  : 'PKR ${remaining.toStringAsFixed(0)} remaining',
+                          ? 'Over budget by \$${remaining.abs().toStringAsFixed(0)}'
+        : '\$${remaining.toStringAsFixed(0)} remaining',
               style: GoogleFonts.poppins(
                 fontSize: 12,
                 color: isOverBudget ? Colors.red : Colors.green,

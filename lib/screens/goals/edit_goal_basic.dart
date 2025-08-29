@@ -206,7 +206,7 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
                     hintText: 'Enter target amount',
-                    prefixText: 'PKR ',
+                    prefixText: '\$ ',
                     filled: true,
                     fillColor: Colors.white,
                     border: OutlineInputBorder(
@@ -354,7 +354,7 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
                                   ),
                                 ),
                                 Text(
-                                  'PKR ${NumberFormat('#,###').format(widget.goal.currentAmount)}',
+                                  '\$${NumberFormat('#,###').format(widget.goal.currentAmount)}',
                                   style: GoogleFonts.poppins(
                                     color: Colors.white,
                                     fontSize: 20,
@@ -376,7 +376,7 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
                                   ),
                                 ),
                                 Text(
-                                  'PKR ${NumberFormat('#,###').format(widget.goal.targetAmount)}',
+                                  '\$${NumberFormat('#,###').format(widget.goal.targetAmount)}',
                                   style: GoogleFonts.poppins(
                                     color: Colors.white,
                                     fontSize: 20,

@@ -256,7 +256,7 @@ class _AddBudgetCategoryState extends State<AddBudgetCategory> {
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
                           hintText: 'Enter amount (e.g., 5000)',
-                          prefixText: 'PKR ',
+                          prefixText: '\$ ',
                           filled: true,
                           fillColor: fieldColor,
                           border: OutlineInputBorder(

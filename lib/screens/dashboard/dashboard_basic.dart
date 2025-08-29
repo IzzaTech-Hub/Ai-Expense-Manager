@@ -7,6 +7,7 @@ import '../../models/budget_model.dart';
 import '../../services/database_service.dart';
 import '../../widgets/app_bottom_nav_bar.dart';
 import '../../routes/app_routes.dart';
+import '../transactions/add_transaction_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -63,11 +64,19 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     }
   }
 
+  // Method to refresh data when returning to dashboard
+  void _refreshOnReturn() {
+    // Add a small delay to ensure the screen is fully loaded
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted) {
+        _loadData();
+      }
+    });
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Refresh data when returning to this screen
-    _loadData();
     
     // Reset navigation index to dashboard (index 0) when returning to this screen
     if (_currentIndex != 0) {
@@ -121,16 +130,38 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         // Already on dashboard
         break;
       case 1:
-        Navigator.pushNamed(context, AppRoutes.analytics);
+        Navigator.pushNamed(context, AppRoutes.analytics).then((_) {
+          // Refresh data when returning from analytics
+          _refreshOnReturn();
+        });
         break;
       case 2:
-        Navigator.pushNamed(context, AppRoutes.addTransaction);
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const AddTransactionScreen(),
+          ),
+        ).then((result) {
+          // If a transaction was added successfully, refresh the dashboard
+          if (result == true) {
+            _loadData();
+          } else {
+            // Also refresh when returning, even if no transaction was added
+            _refreshOnReturn();
+          }
+        });
         break;
       case 3:
-        Navigator.pushNamed(context, AppRoutes.budget);
+        Navigator.pushNamed(context, AppRoutes.budget).then((_) {
+          // Refresh data when returning from budget
+          _refreshOnReturn();
+        });
         break;
       case 4:
-        Navigator.pushNamed(context, AppRoutes.aiAssistant);
+        Navigator.pushNamed(context, AppRoutes.aiAssistant).then((_) {
+          // Refresh data when returning from AI Assistant
+          _refreshOnReturn();
+        });
         break;
     }
   }
@@ -255,29 +286,31 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
           _buildRefreshButton(),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Balance Card
-            _buildBalanceCard(),
-            const SizedBox(height: 24),
-            
-            // Quick Actions
-            _buildQuickActions(),
-            const SizedBox(height: 24),
-            
-            // Recent Transactions
-            _buildRecentTransactions(),
-            const SizedBox(height: 24),
-            
-            // Budget Overview
-            if (_budgetCategories.isNotEmpty) ...[
-              _buildBudgetOverview(),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Balance Card
+              _buildBalanceCard(),
               const SizedBox(height: 24),
+              
+              // Quick Actions
+              _buildQuickActions(),
+              const SizedBox(height: 24),
+              
+              // Recent Transactions
+              _buildRecentTransactions(),
+              const SizedBox(height: 24),
+              
+              // Budget Overview
+              if (_budgetCategories.isNotEmpty) ...[
+                _buildBudgetOverview(),
+                const SizedBox(height: 24),
+              ],
             ],
-          ],
+          ),
         ),
       ),
 
@@ -324,7 +357,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'PKR ${NumberFormat('#,###').format(_balance)}',
+                  '\$${NumberFormat('#,###').format(_balance)}',
                   style: GoogleFonts.poppins(
                     color: Colors.white,
                     fontSize: 32,
@@ -346,7 +379,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                             ),
                           ),
                           Text(
-                            'PKR ${NumberFormat('#,###').format(_totalIncome)}',
+                            '\$${NumberFormat('#,###').format(_totalIncome)}',
                             style: GoogleFonts.poppins(
                               color: Colors.white,
                               fontSize: 18,
@@ -368,7 +401,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                             ),
                           ),
                           Text(
-                            'PKR ${NumberFormat('#,###').format(_totalExpenses)}',
+                            '\$${NumberFormat('#,###').format(_totalExpenses)}',
                             style: GoogleFonts.poppins(
                               color: Colors.white,
                               fontSize: 18,
@@ -408,7 +441,18 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                 icon: Icons.add_circle_outline,
                 label: 'Add Transaction',
                 color: const Color(0xFF10B981),
-                onTap: () => Navigator.pushNamed(context, AppRoutes.addTransaction),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AddTransactionScreen(),
+                  ),
+                ).then((result) {
+                  if (result == true) {
+                    _loadData();
+                  } else {
+                    _refreshOnReturn();
+                  }
+                }),
               ),
             ),
             const SizedBox(width: 16),
@@ -417,7 +461,9 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                 icon: Icons.account_balance_wallet,
                 label: 'Manage Budget',
                 color: const Color(0xFFF59E0B),
-                onTap: () => Navigator.pushNamed(context, AppRoutes.budget),
+                onTap: () => Navigator.pushNamed(context, AppRoutes.budget).then((_) {
+                  _refreshOnReturn();
+                }),
               ),
             ),
             const SizedBox(width: 16),
@@ -426,7 +472,9 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                 icon: Icons.psychology,
                 label: 'AI Assistant Chat Bot',
                 color: const Color(0xFF8B5CF6),
-                onTap: () => Navigator.pushNamed(context, AppRoutes.aiAssistant),
+                onTap: () => Navigator.pushNamed(context, AppRoutes.aiAssistant).then((_) {
+                  _refreshOnReturn();
+                }),
               ),
             ),
           ],
@@ -493,7 +541,9 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
           ),
         ),
             TextButton(
-              onPressed: () => Navigator.pushNamed(context, AppRoutes.analytics),
+              onPressed: () => Navigator.pushNamed(context, AppRoutes.analytics).then((_) {
+                _refreshOnReturn();
+              }),
               child: Text(
                 'View All',
                 style: GoogleFonts.poppins(
@@ -613,7 +663,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                           ),
                         ),
           Text(
-            '${transaction.type == 'income' ? '+' : '-'}PKR ${NumberFormat('#,###').format(transaction.amount)}',
+            '${transaction.type == 'income' ? '+' : '-'}\$${NumberFormat('#,###').format(transaction.amount)}',
                               style: GoogleFonts.poppins(
               fontSize: 16,
                                 fontWeight: FontWeight.w600,
@@ -678,7 +728,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                 ),
               ),
                             Text(
-                'PKR ${NumberFormat('#,###').format(remaining)} left',
+                '\$${NumberFormat('#,###').format(remaining)} left',
                 style: GoogleFonts.poppins(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
@@ -713,7 +763,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                       ),
           const SizedBox(height: 8),
           Text(
-            'PKR ${NumberFormat('#,###').format(category.spent)} / PKR ${NumberFormat('#,###').format(category.allocated)}',
+            '\$${NumberFormat('#,###').format(category.spent)} / \$${NumberFormat('#,###').format(category.allocated)}',
             style: GoogleFonts.poppins(
               fontSize: 14,
               color: Colors.grey[600],

@@ -96,9 +96,10 @@ class _AddMoneyToGoalScreenState extends State<AddMoneyToGoalScreen> {
         ),
       ),
 
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
           // Goal Card
           _cardWrapper(
             children: [
@@ -139,7 +140,7 @@ class _AddMoneyToGoalScreenState extends State<AddMoneyToGoalScreen> {
               Align(
                 alignment: Alignment.centerRight,
                 child: Text(
-                  'PKR ${widget.goal.currentAmount.toStringAsFixed(0)} / ${widget.goal.targetAmount.toStringAsFixed(0)}',
+                  '\$${widget.goal.currentAmount.toStringAsFixed(0)} / \$${widget.goal.targetAmount.toStringAsFixed(0)}',
                   style: GoogleFonts.poppins(fontSize: fontSize),
                 ),
               ),
@@ -170,7 +171,7 @@ class _AddMoneyToGoalScreenState extends State<AddMoneyToGoalScreen> {
                 },
                 style: GoogleFonts.poppins(fontSize: fontSize),
                 decoration: InputDecoration(
-                  prefixText: 'PKR ',
+                                      prefixText: '\$ ',
                   hintText: '0.00',
                   filled: true,
                   fillColor: const Color(0xFFF5F5F5),
@@ -195,7 +196,7 @@ class _AddMoneyToGoalScreenState extends State<AddMoneyToGoalScreen> {
                       _isSaving
                           ? const CircularProgressIndicator(color: Colors.white)
                           : Text(
-                            'Add PKR ${_amount.toStringAsFixed(0)} to Goal',
+                            'Add \$${_amount.toStringAsFixed(0)} to Goal',
                             style: GoogleFonts.poppins(
                               color: Colors.white,
                               fontWeight: FontWeight.w500,
@@ -237,7 +238,7 @@ class _AddMoneyToGoalScreenState extends State<AddMoneyToGoalScreen> {
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
-                            'PKR $amount',
+                            '\$$amount',
                             style: GoogleFonts.poppins(
                               fontSize: fontSize,
                               fontWeight: FontWeight.w500,
@@ -250,6 +251,7 @@ class _AddMoneyToGoalScreenState extends State<AddMoneyToGoalScreen> {
             ],
           ),
         ],
+        ),
       ),
 
       // ✅ Dashboard-consistent bottom nav bar

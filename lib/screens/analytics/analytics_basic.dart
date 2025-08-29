@@ -209,7 +209,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
             ),
             SizedBox(height: screenWidth * 0.02),
             Text(
-              'PKR ${totalSpent.toStringAsFixed(0)}',
+              '\$${totalSpent.toStringAsFixed(0)}',
               style: GoogleFonts.poppins(
                 fontSize: screenWidth * 0.045,
                 fontWeight: FontWeight.bold,
@@ -252,7 +252,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
             ),
             SizedBox(height: screenWidth * 0.02),
             Text(
-              'PKR ${dailyAverage.toStringAsFixed(0)}',
+              '\$${dailyAverage.toStringAsFixed(0)}',
               style: GoogleFonts.poppins(
                 fontSize: screenWidth * 0.045,
                 fontWeight: FontWeight.bold,
@@ -327,7 +327,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
                           ),
                         ),
                         Text(
-                  'PKR ${category.spent.toStringAsFixed(0)}',
+                  '\$${category.spent.toStringAsFixed(0)}',
                           style: GoogleFonts.poppins(
                             fontWeight: FontWeight.bold,
                     color: const Color(0xFFEF4444),
@@ -415,7 +415,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
                   ),
                 ),
                 Text(
-                  'PKR ${amount.toStringAsFixed(0)}',
+                  '\$${amount.toStringAsFixed(0)}',
                       style: GoogleFonts.poppins(
                     fontWeight: FontWeight.bold,
                     color: const Color(0xFF10B981),
