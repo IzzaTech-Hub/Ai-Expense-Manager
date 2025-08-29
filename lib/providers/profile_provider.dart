@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import '../services/profile_service.dart';
 
 class ProfileProvider extends ChangeNotifier {
-  String _name = '';
-  String _email = '';
+  String _name = 'User';
+  String _email = 'user@example.com';
   bool _isLoading = false;
   String? _error;
   bool _notificationsEnabled = true;
@@ -14,19 +13,16 @@ class ProfileProvider extends ChangeNotifier {
   String? get error => _error;
   bool get notificationsEnabled => _notificationsEnabled;
 
-  final ProfileService _profileService = ProfileService();
-
   Future<void> loadProfile() async {
     _isLoading = true;
     _error = null;
     notifyListeners();
+    
     try {
-      final data = await _profileService.getProfile();
-      if (data != null) {
-        _name = data['name'] ?? '';
-        _email = data['email'] ?? '';
-        _notificationsEnabled = data['notificationsEnabled'] ?? true;
-      }
+      // For now, use default values since we're not using Firebase
+      _name = 'User';
+      _email = 'user@example.com';
+      _notificationsEnabled = true;
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -39,8 +35,9 @@ class ProfileProvider extends ChangeNotifier {
     _isLoading = true;
     _error = null;
     notifyListeners();
+    
     try {
-      await _profileService.updateProfile(name, email);
+      // Update local values
       _name = name;
       _email = email;
     } catch (e) {
@@ -55,8 +52,10 @@ class ProfileProvider extends ChangeNotifier {
     _isLoading = true;
     _error = null;
     notifyListeners();
+    
     try {
-      await _profileService.updatePassword(newPassword);
+      // For now, just simulate success
+      await Future.delayed(const Duration(milliseconds: 500));
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -69,8 +68,8 @@ class ProfileProvider extends ChangeNotifier {
     _isLoading = true;
     _error = null;
     notifyListeners();
+    
     try {
-      await _profileService.setNotificationPreference(enabled);
       _notificationsEnabled = enabled;
     } catch (e) {
       _error = e.toString();

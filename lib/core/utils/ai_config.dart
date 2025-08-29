@@ -1,6 +1,17 @@
-// WARNING: For demo use only. Do not commit real keys in production.
-// Move to secure storage or use --dart-define for release builds.
-
-const String geminiApiKey = 'AIzaSyBEbc-znpGj__pWIiz1eBfDfpTeQPuBReQ';
+// AI Service Configuration
+class AIConfig {
+  static const String modelName = 'gemini-1.5-flash';
+  static const int requestTimeoutSeconds = 30;
+  static const int connectionTestTimeoutSeconds = 10;
+  
+  // API endpoints for debugging
+  static const String baseUrl = 'https://generativelanguage.googleapis.com';
+  static const String apiVersion = 'v1beta';
+  
+  // Validation method
+  static bool isValidApiKey(String key) {
+    return key.isNotEmpty && key.startsWith('AIza') && key.length > 30;
+  }
+}
 
 

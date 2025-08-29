@@ -41,49 +41,48 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyCMtPjPTMBHTRvqmqvknM4Z9hl-JTmbvyQ',
-    appId: '1:59093251814:web:9fe112a9a33b72a920ed27',
-    messagingSenderId: '59093251814',
-    projectId: 'expense-manager-a7e2e',
-    authDomain: 'expense-manager-a7e2e.firebaseapp.com',
-    storageBucket: 'expense-manager-a7e2e.firebasestorage.app',
-    measurementId: 'G-PXKFSG7VZP',
+    apiKey: 'AIzaSyCqiT66MdUZA65HBnwZKNVbMkhx3FBZHZU',
+    appId: '1:149480273715:web:1c8867ce334e3da920b046',
+    messagingSenderId: '149480273715',
+    projectId: 'ai-expense-manager-2de58',
+    authDomain: 'ai-expense-manager-2de58.firebaseapp.com',
+    storageBucket: 'ai-expense-manager-2de58.firebasestorage.app',
+    measurementId: 'G-T7XQ7T9YJD',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDqXkFCIX0pnJRE_wtDG_FKKXpIVgnPd3A',
-    appId: '1:59093251814:android:dccaea001b3c321a20ed27',
-    messagingSenderId: '59093251814',
-    projectId: 'expense-manager-a7e2e',
-    storageBucket: 'expense-manager-a7e2e.firebasestorage.app',
+    apiKey: 'AIzaSyALeHsxJ7Y0dVKap8IVZL4n7hK-Otmz5pU',
+    appId: '1:149480273715:android:9ee36dec8e56090d20b046',
+    messagingSenderId: '149480273715',
+    projectId: 'ai-expense-manager-2de58',
+    storageBucket: 'ai-expense-manager-2de58.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyDFsWOFW_6ywdM5BfcnmFpL81T-9uYOLbc',
-    appId: '1:59093251814:ios:b77ccedcec08464720ed27',
-    messagingSenderId: '59093251814',
-    projectId: 'expense-manager-a7e2e',
-    storageBucket: 'expense-manager-a7e2e.firebasestorage.app',
-    iosBundleId: 'com.example.flutterApplicationMadproject',
+    apiKey: 'AIzaSyBibMd_7qYlSLDQpw5t27_uZ9Sc4MFd_4Q',
+    appId: '1:149480273715:ios:a55f27116ccf7ff320b046',
+    messagingSenderId: '149480273715',
+    projectId: 'ai-expense-manager-2de58',
+    storageBucket: 'ai-expense-manager-2de58.firebasestorage.app',
+    iosBundleId: 'com.ai.expensemanager.savings',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyDFsWOFW_6ywdM5BfcnmFpL81T-9uYOLbc',
-    appId: '1:59093251814:ios:b77ccedcec08464720ed27',
-    messagingSenderId: '59093251814',
-    projectId: 'expense-manager-a7e2e',
-    storageBucket: 'expense-manager-a7e2e.firebasestorage.app',
+    apiKey: 'AIzaSyBibMd_7qYlSLDQpw5t27_uZ9Sc4MFd_4Q',
+    appId: '1:149480273715:ios:f5708e50c4f2cd5620b046',
+    messagingSenderId: '149480273715',
+    projectId: 'ai-expense-manager-2de58',
+    storageBucket: 'ai-expense-manager-2de58.firebasestorage.app',
     iosBundleId: 'com.example.flutterApplicationMadproject',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyCMtPjPTMBHTRvqmqvknM4Z9hl-JTmbvyQ',
-    appId: '1:59093251814:web:89e592ea1a1564a220ed27',
-    messagingSenderId: '59093251814',
-    projectId: 'expense-manager-a7e2e',
-    authDomain: 'expense-manager-a7e2e.firebaseapp.com',
-    storageBucket: 'expense-manager-a7e2e.firebasestorage.app',
-    measurementId: 'G-G537SZG3X0',
+    apiKey: 'AIzaSyCqiT66MdUZA65HBnwZKNVbMkhx3FBZHZU',
+    appId: '1:149480273715:web:072ac3d53ae6d00f20b046',
+    messagingSenderId: '149480273715',
+    projectId: 'ai-expense-manager-2de58',
+    authDomain: 'ai-expense-manager-2de58.firebaseapp.com',
+    storageBucket: 'ai-expense-manager-2de58.firebasestorage.app',
+    measurementId: 'G-BJW57QCK15',
   );
-
 }

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/ai_service.dart';
+import '../../services/database_service.dart';
+import '../../models/user_model.dart';
+import '../../routes/app_routes.dart';
 
 class AiAssistantScreen extends StatefulWidget {
   const AiAssistantScreen({super.key});
@@ -14,13 +15,161 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isSending = false;
+  List<Map<String, dynamic>> _chatHistory = [];
+  User? _currentUser;
 
   late final AIService _aiService;
+  final DatabaseService _databaseService = DatabaseService();
 
   @override
   void initState() {
     super.initState();
     _aiService = AIService();
+    _isSending = false; // Initialize the sending state
+    _chatHistory = <Map<String, dynamic>>[]; // Initialize as empty mutable list
+    _loadUserAndChatHistory();
+    _testApiConnection();
+  }
+
+  Future<void> _loadUserAndChatHistory() async {
+    try {
+      final user = await _databaseService.getUser('default_user');
+      if (user != null) {
+        final chatHistory = await _aiService.getChatHistory(user.id, limit: 50);
+        
+        setState(() {
+          _currentUser = user;
+          _chatHistory = List<Map<String, dynamic>>.from(chatHistory);
+        });
+      }
+    } catch (e) {
+      print('Error loading user and chat history: $e');
+    }
+  }
+
+  Future<void> _testApiConnection() async {
+    try {
+      final isConnected = await _aiService.testApiConnection();
+      if (!isConnected) {
+        print('AI Service: API connection test failed');
+        // Don't show error to user immediately, let them try to use it first
+      } else {
+        print('AI Service: API connection test successful');
+      }
+    } catch (e) {
+      print('AI Service: Error testing API connection: $e');
+    }
+  }
+
+  Stream<bool> _getConnectionStatusStream() async* {
+    // Initial check - use basic connectivity first
+    yield await _aiService.testBasicConnectivity();
+    
+    // Periodic check every 10 seconds
+    while (true) {
+      await Future.delayed(const Duration(seconds: 10));
+      yield await _aiService.testBasicConnectivity();
+    }
+  }
+
+  void _refreshConnectionStatus() {
+    // Force a refresh by calling setState
+    setState(() {});
+  }
+
+  Future<bool> _checkApiKeyPoolStatus() async {
+    try {
+      // Check if ApiKeyPool is working by trying to get a key
+      return _aiService.isApiKeyPoolReady();
+    } catch (e) {
+      print('AI Assistant: Failed to check ApiKeyPool status: $e');
+      return false;
+    }
+  }
+
+  void _testApiKeyPool() async {
+    try {
+      print('🔑 Testing ApiKeyPool functionality...');
+      final result = await _aiService.testApiKeyPool();
+      
+      print('📊 ApiKeyPool test result: $result');
+      
+      // Show result in a dialog
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('ApiKeyPool Test Results'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Status: ${result['status']}'),
+                  Text('Ready: ${result['ready']}'),
+                  if (result['keyLength'] != null) Text('Key Length: ${result['keyLength']}'),
+                  if (result['keyPreview'] != null) Text('Key Preview: ${result['keyPreview']}...'),
+                  if (result['isValid'] != null) Text('Valid Key: ${result['isValid']}'),
+                  if (result['error'] != null) Text('Error: ${result['error']}'),
+                  if (result['errorType'] != null) Text('Error Type: ${result['errorType']}'),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('OK'),
+                ),
+              ],
+            );
+          },
+        );
+      }
+    } catch (e) {
+      print('❌ Error testing ApiKeyPool: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error testing ApiKeyPool: $e')),
+        );
+      }
+    }
+  }
+
+  void _navigateBackToDashboard() {
+    // Navigate back to dashboard and reset the bottom navigation state
+    Navigator.pushReplacementNamed(context, AppRoutes.dashboard);
+  }
+
+  void _showConnectionInfo() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Connection Information'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('AI Assistant requires:'),
+              const SizedBox(height: 8),
+              const Text('• Internet connection'),
+              const Text('• Valid API key'),
+              const Text('• Google AI service access'),
+              const SizedBox(height: 16),
+              const Text('If you\'re having issues:'),
+              const Text('1. Check your internet connection'),
+              const Text('2. Try again in a few minutes'),
+              const Text('3. Contact support if problem persists'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -32,58 +181,76 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
 
   Future<void> _sendMessage() async {
     final userText = _controller.text.trim();
-    if (userText.isEmpty || _isSending) return;
-    setState(() { _isSending = true; });
+    if (userText.isEmpty || _isSending) {
+      print('Cannot send: empty text or already sending');
+        return;
+      }
+
+    print('Sending message: $userText');
+    
+    setState(() { 
+      _isSending = true;
+      // Ensure the list is mutable
+      if (_chatHistory is! List<Map<String, dynamic>>) {
+        _chatHistory = <Map<String, dynamic>>[];
+      }
+      _chatHistory.insert(0, {
+        'role': 'user',
+        'message': userText,
+        'timestamp': DateTime.now().toIso8601String(),
+      });
+    });
+    
     _controller.clear();
+    _scrollToBottom();
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        _appendAssistant('Please sign in to use AI assistant.');
-        return;
+      if (_currentUser == null) {
+        print('No current user, creating default user');
+        _appendAssistant('Please wait while I initialize...');
+        // Try to get or create default user
+        final user = await _databaseService.getUser('default_user');
+        if (user != null) {
+          setState(() {
+            _currentUser = user;
+          });
+        } else {
+          _appendAssistant('Error: Could not initialize user. Please restart the app.');
+          return;
+        }
       }
 
-      final messagesCol = FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('ai_messages');
-
-      // Persist user message
-      await messagesCol.add({
-        'role': 'user',
-        'text': userText,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      final json = await _aiService.parseIntent(userText);
-      if (json == null) {
-        await messagesCol.add({
+      print('Getting AI response for user: ${_currentUser!.id}');
+      final response = await _aiService.getResponse(userText, _currentUser!.id);
+      print('AI response received: ${response.substring(0, response.length > 50 ? 50 : response.length)}...');
+      
+      setState(() {
+        // Ensure the list is mutable
+        if (_chatHistory is! List<Map<String, dynamic>>) {
+          _chatHistory = <Map<String, dynamic>>[];
+        }
+        _chatHistory.insert(0, {
           'role': 'assistant',
-          'text': 'Sorry, I could not understand.',
-          'createdAt': FieldValue.serverTimestamp(),
+          'response': response,
+          'timestamp': DateTime.now().toIso8601String(),
         });
-        return;
-      }
-
-      final resultText = await _handleIntent(json, user.uid);
-      await messagesCol.add({
-        'role': 'assistant',
-        'text': resultText,
-        'createdAt': FieldValue.serverTimestamp(),
       });
+      
+      _scrollToBottom();
     } catch (e) {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        final messagesCol = FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .collection('ai_messages');
-        await messagesCol.add({
-          'role': 'assistant',
-          'text': 'Error: $e',
-          'createdAt': FieldValue.serverTimestamp(),
-        });
+      print('Error in AI service: $e');
+      String errorMessage = 'Sorry, I encountered an error. Please try again.';
+      
+      // Provide more specific error messages for common issues
+      if (e.toString().contains('Network error') || 
+          e.toString().contains('SocketException') ||
+          e.toString().contains('timeout')) {
+        errorMessage = 'I\'m having trouble connecting to the internet. Please check your internet connection and try again.';
+      } else if (e.toString().contains('API key') || e.toString().contains('authentication')) {
+        errorMessage = 'There\'s an issue with the AI service configuration. Please contact support.';
       }
+      
+      _appendAssistant(errorMessage);
     } finally {
       if (mounted) {
         setState(() {
@@ -93,452 +260,432 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     }
   }
 
-  Future<String> _handleIntent(Map<String, dynamic> json, String userId) async {
-    final intent = (json['intent'] ?? '').toString();
-    final category = (json['category'] as String?)?.trim();
-    final amount = (json['amount'] is num) ? (json['amount'] as num).toDouble() : null;
-    final transactionType = (json['transactionType'] as String?)?.trim();
-    final dateStr = (json['date'] as String?)?.trim();
-    final notes = (json['notes'] as String?)?.trim();
-    final updateMode = (json['updateMode'] as String?)?.trim();
-    final timeRange = (json['timeRange'] as String?)?.trim();
-    final startDateStr = (json['startDate'] as String?)?.trim();
-    final endDateStr = (json['endDate'] as String?)?.trim();
-
-    final budgets = FirebaseFirestore.instance.collection('budgets');
-    final transactions = FirebaseFirestore.instance.collection('transactions');
-
-    DateTime? parsedDate;
-    if (dateStr != null && dateStr.isNotEmpty) {
-      if (dateStr.toLowerCase() == 'today') {
-        parsedDate = DateTime.now();
-      } else {
-        try { parsedDate = DateTime.parse(dateStr); } catch (_) {}
+  void _appendAssistant(String message) {
+    setState(() {
+      // Ensure the list is mutable
+      if (_chatHistory is! List<Map<String, dynamic>>) {
+        _chatHistory = <Map<String, dynamic>>[];
       }
-    }
-
-    // Resolve time window for queries
-    DateTimeRange? window;
-    final now = DateTime.now();
-    if (timeRange != null && timeRange.isNotEmpty) {
-      switch (timeRange) {
-        case 'last_3_days':
-          window = DateTimeRange(start: now.subtract(const Duration(days: 3)), end: now);
-          break;
-        case 'last_7_days':
-          window = DateTimeRange(start: now.subtract(const Duration(days: 7)), end: now);
-          break;
-        case 'last_30_days':
-          window = DateTimeRange(start: now.subtract(const Duration(days: 30)), end: now);
-          break;
-        case 'this_month':
-          final start = DateTime(now.year, now.month, 1);
-          final end = DateTime(now.year, now.month + 1, 1).subtract(const Duration(seconds: 1));
-          window = DateTimeRange(start: start, end: end);
-          break;
-        case 'last_month':
-          final start = DateTime(now.year, now.month - 1, 1);
-          final end = DateTime(now.year, now.month, 1).subtract(const Duration(seconds: 1));
-          window = DateTimeRange(start: start, end: end);
-          break;
-        case 'this_year':
-          final start = DateTime(now.year, 1, 1);
-          final end = DateTime(now.year + 1, 1, 1).subtract(const Duration(seconds: 1));
-          window = DateTimeRange(start: start, end: end);
-          break;
-        case 'custom':
-          try {
-            if (startDateStr != null && endDateStr != null) {
-              window = DateTimeRange(start: DateTime.parse(startDateStr), end: DateTime.parse(endDateStr));
-            }
-          } catch (_) {}
-          break;
-      }
-    }
-
-    switch (intent) {
-      case 'query_budget':
-        {
-          Query<Map<String, dynamic>> q = budgets.where('userId', isEqualTo: userId);
-          if (category != null && category.isNotEmpty) {
-            q = q.where('name', isEqualTo: category);
-          }
-          final snap = await q.get();
-          if (snap.docs.isEmpty) return 'No budget data found.';
-          if (category != null && category.isNotEmpty) {
-            final d = snap.docs.first.data();
-            final allocated = (d['allocated'] ?? 0).toDouble();
-            final spent = (d['spent'] ?? 0).toDouble();
-            return '$category: allocated PKR ${allocated.toStringAsFixed(0)}, spent PKR ${spent.toStringAsFixed(0)}.';
-          }
-          double totalAllocated = 0, totalSpent = 0;
-          for (final doc in snap.docs) {
-            totalAllocated += (doc['allocated'] ?? 0).toDouble();
-            totalSpent += (doc['spent'] ?? 0).toDouble();
-          }
-          return 'All budgets: allocated PKR ${totalAllocated.toStringAsFixed(0)}, spent PKR ${totalSpent.toStringAsFixed(0)}.';
-        }
-      case 'update_budget':
-      case 'add_budget_category':
-        {
-          if (category == null || amount == null) return 'Need category and amount.';
-          final existing = await budgets
-              .where('userId', isEqualTo: userId)
-              .where('name', isEqualTo: category)
-              .limit(1)
-              .get();
-          if (existing.docs.isEmpty) {
-            await budgets.add({
-              'name': category,
-              'allocated': amount,
-              'spent': 0.0,
-              'userId': userId,
-              'createdAt': Timestamp.now(),
-            });
-            return 'Created budget "$category" with PKR ${amount.toStringAsFixed(0)}.';
-          } else {
-            final current = (existing.docs.first['allocated'] ?? 0).toDouble();
-            final shouldIncrement = (updateMode == 'increment');
-            final newValue = shouldIncrement ? (current + amount) : amount;
-            await existing.docs.first.reference.update({'allocated': newValue});
-            return shouldIncrement
-                ? 'Increased "$category" budget by PKR ${amount.toStringAsFixed(0)} (now PKR ${newValue.toStringAsFixed(0)}).'
-                : 'Set "$category" budget to PKR ${newValue.toStringAsFixed(0)}.';
-          }
-        }
-      case 'delete_budget_category':
-        {
-          if (category == null) return 'Need category.';
-          final existing = await budgets
-              .where('userId', isEqualTo: userId)
-              .where('name', isEqualTo: category)
-              .limit(1)
-              .get();
-          if (existing.docs.isEmpty) return 'Category not found.';
-          await existing.docs.first.reference.delete();
-          return 'Deleted budget category "$category".';
-        }
-      case 'add_transaction':
-        {
-          String resolvedCategory = (category == null || category.isEmpty) ? 'Other' : category;
-          if (amount == null || transactionType == null) return 'Need amount and type.';
-          await transactions.add({
-            'userId': userId,
-            'category': resolvedCategory,
-            'amount': amount,
-            'type': transactionType,
-            'date': Timestamp.fromDate(parsedDate ?? DateTime.now()),
-            'notes': notes,
-          });
-          if (transactionType == 'expense') {
-            final cat = await budgets
-                .where('userId', isEqualTo: userId)
-                .where('name', isEqualTo: resolvedCategory)
-                .limit(1)
-                .get();
-            if (cat.docs.isNotEmpty) {
-              final spent = (cat.docs.first['spent'] ?? 0).toDouble();
-              await cat.docs.first.reference.update({'spent': spent + amount});
-            }
-          }
-          return 'Added $transactionType of PKR ${amount.toStringAsFixed(0)} to "$resolvedCategory".';
-        }
-      case 'delete_transaction':
-        {
-          Query<Map<String, dynamic>> q = transactions
-              .where('userId', isEqualTo: userId)
-              .orderBy('date', descending: true)
-              .limit(1);
-          if (category != null && category.isNotEmpty) {
-            q = transactions
-                .where('userId', isEqualTo: userId)
-                .where('category', isEqualTo: category)
-                .orderBy('date', descending: true)
-                .limit(1);
-          }
-          final snap = await q.get();
-          if (snap.docs.isEmpty) return 'No matching transaction found.';
-          final doc = snap.docs.first;
-          final data = doc.data();
-          await doc.reference.delete();
-          if ((data['type'] as String?) == 'expense') {
-            final cat = await budgets
-                .where('userId', isEqualTo: userId)
-                .where('name', isEqualTo: data['category'])
-                .limit(1)
-                .get();
-            if (cat.docs.isNotEmpty) {
-              final spent = (cat.docs.first['spent'] ?? 0).toDouble();
-              await cat.docs.first.reference.update({'spent': (spent - (data['amount'] ?? 0)).clamp(0, double.infinity)});
-            }
-          }
-          return 'Deleted last${category != null ? ' $category' : ''} transaction.';
-        }
-      case 'query_income_expense':
-        {
-          Query<Map<String, dynamic>> q = transactions.where('userId', isEqualTo: userId);
-          if (window != null) {
-            q = q
-                .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(window.start))
-                .where('date', isLessThanOrEqualTo: Timestamp.fromDate(window.end));
-          }
-          final snap = await q.get();
-          double income = 0, expense = 0;
-          for (final d in snap.docs) {
-            final amt = (d['amount'] ?? 0).toDouble();
-            if (d['type'] == 'income') income += amt; else expense += amt;
-          }
-          final rangeLabel = _rangeLabel(window);
-          return '${rangeLabel.isEmpty ? '' : '$rangeLabel: '}Income PKR ${income.toStringAsFixed(0)}, expenses PKR ${expense.toStringAsFixed(0)}.';
-        }
-      case 'query_spending':
-        {
-          Query<Map<String, dynamic>> q = transactions
-              .where('userId', isEqualTo: userId)
-              .where('type', isEqualTo: 'expense');
-          if (window != null) {
-            q = q
-                .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(window.start))
-                .where('date', isLessThanOrEqualTo: Timestamp.fromDate(window.end));
-          }
-          if (category != null && category.isNotEmpty) {
-            q = q.where('category', isEqualTo: category);
-          }
-          final snap = await q.get();
-          double total = 0;
-          final Map<String, double> byCategory = {};
-          for (final d in snap.docs) {
-            final amt = (d['amount'] ?? 0).toDouble();
-            total += amt;
-            final cat = (d['category'] ?? 'Unknown') as String;
-            byCategory[cat] = (byCategory[cat] ?? 0) + amt;
-          }
-          final rangeLabel = _rangeLabel(window);
-          if (category != null && category.isNotEmpty) {
-            return '${rangeLabel.isEmpty ? '' : '$rangeLabel: '}Spent PKR ${total.toStringAsFixed(0)} on $category.';
-          }
-          if (byCategory.isEmpty) return 'No spending found${rangeLabel.isEmpty ? '' : ' for $rangeLabel'}.';
-          final parts = byCategory.entries
-              .toList()
-              .map((e) => '${e.key}: PKR ${e.value.toStringAsFixed(0)}')
-              .join(', ');
-          return '${rangeLabel.isEmpty ? '' : '$rangeLabel: '}Spending -> $parts (Total PKR ${total.toStringAsFixed(0)}).';
-        }
-      default:
-        return 'I could not understand. Try rephrasing.';
-    }
+      _chatHistory.insert(0, {
+        'role': 'assistant',
+        'response': message,
+        'timestamp': DateTime.now().toIso8601String(),
+      });
+    });
+    _scrollToBottom();
   }
 
-  String _rangeLabel(DateTimeRange? w) {
-    if (w == null) return '';
-    return '${w.start.year}-${w.start.month.toString().padLeft(2, '0')}-${w.start.day.toString().padLeft(2, '0')} to ${w.end.year}-${w.end.month.toString().padLeft(2, '0')}-${w.end.day.toString().padLeft(2, '0')}';
-  }
-
-  void _appendAssistant(String text) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-    final messagesCol = FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .collection('ai_messages');
-    await messagesCol.add({
-      'role': 'assistant',
-      'text': text,
-      'createdAt': FieldValue.serverTimestamp(),
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
     });
   }
 
-  Future<void> _clearHistory() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-    final messagesCol = FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .collection('ai_messages');
-    final snap = await messagesCol.get();
-    final batch = FirebaseFirestore.instance.batch();
-    for (final d in snap.docs) {
-      batch.delete(d.reference);
+
+
+  Future<void> _clearChatHistory() async {
+    try {
+      if (_currentUser != null) {
+        // Clear chat history from database
+        await _databaseService.clearChatHistory(userId: _currentUser!.id);
+        
+        // Clear local chat history
+        setState(() {
+          _chatHistory.clear();
+        });
+        
+        // Show success message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Chat history cleared successfully!'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error clearing chat history: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error clearing chat history: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
-    await batch.commit();
+  }
+
+
+
+  void _showClearChatDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Clear Chat History'),
+          content: const Text(
+            'Are you sure you want to clear all chat history? This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _clearChatHistory();
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+              ),
+              child: const Text('Clear'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    print('AI Assistant Screen - Current user: ${_currentUser?.name}, isSending: $_isSending');
     return Scaffold(
+      backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
-        title: const Text('AI Assistant'),
+        backgroundColor: const Color(0xFFF9FAFB),
+        elevation: 0,
+        title: const Text(
+          'AI Assistant',
+          style: TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          onPressed: () => _navigateBackToDashboard(),
+        ),
         actions: [
+          // Network status indicator
+          StreamBuilder<bool>(
+            stream: _getConnectionStatusStream(),
+            builder: (context, snapshot) {
+              final isConnected = snapshot.data ?? true; // Default to true to avoid false negatives
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isConnected ? Icons.wifi : Icons.wifi_off,
+                    color: isConnected ? Colors.green : Colors.red,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  if (!isConnected) ...[
+                    IconButton(
+                      icon: const Icon(Icons.refresh, size: 18),
+                      onPressed: () => _refreshConnectionStatus(),
+                      tooltip: 'Refresh Connection',
+                    ),
           IconButton(
-            tooltip: 'Clear chat',
-            icon: const Icon(Icons.delete_outline),
-            onPressed: () async {
-              final ok = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Clear chat?'),
-                  content: const Text('This will delete all chat messages.'),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                    TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Clear')),
+                      icon: const Icon(Icons.info_outline, size: 18),
+                      onPressed: () => _showConnectionInfo(),
+                      tooltip: 'Connection Info',
+                    ),
                   ],
-                ),
+                  // ApiKeyPool status indicator
+                  FutureBuilder<bool>(
+                    future: _checkApiKeyPoolStatus(),
+                    builder: (context, snapshot) {
+                      final isApiKeyReady = snapshot.data ?? false;
+                      return Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isApiKeyReady ? Icons.key : Icons.key_off,
+                            color: isApiKeyReady ? Colors.green : Colors.red,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 4),
+                          if (!isApiKeyReady)
+                            IconButton(
+                              icon: const Icon(Icons.bug_report, size: 16),
+                              onPressed: () => _testApiKeyPool(),
+                              tooltip: 'Test ApiKeyPool',
+                            ),
+                        ],
+                      );
+                    },
+                  ),
+                ],
               );
-              if (ok == true) {
-                await _clearHistory();
-              }
             },
+          ),
+          if (_chatHistory.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.delete_sweep, color: Colors.red),
+              onPressed: () => _showClearChatDialog(),
+              tooltip: 'Clear Chat History',
           ),
         ],
       ),
       body: Column(
         children: [
           Expanded(
-            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: _messagesStream(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final docs = snapshot.data?.docs ?? [];
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (_scrollController.hasClients) {
-                    _scrollController.animateTo(
-                      _scrollController.position.maxScrollExtent,
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeOut,
-                    );
-                  }
-                });
-                return ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  itemCount: docs.length + (_isSending ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    if (_isSending && index == docs.length) {
-                      return _typingBubble();
-                    }
-                    final d = docs[index].data();
-                    final isUser = (d['role'] as String?) == 'user';
-                    final text = (d['text'] as String?) ?? '';
-                    return Align(
-                      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 6),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: isUser ? const Color(0xFF3B82F6) : Colors.grey.shade200,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Text(
-                          text,
-                          style: TextStyle(color: isUser ? Colors.white : Colors.black87),
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
+            child: _chatHistory.isEmpty
+                ? _buildWelcomeMessage()
+                : _buildChatList(),
           ),
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      textInputAction: TextInputAction.send,
-                      decoration: InputDecoration(
-                        hintText: 'Message AI... (add, update, delete, ask)',
-                        fillColor: Colors.white,
-                        filled: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(24)),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide(color: Colors.grey.shade300)),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: const BorderSide(color: Color(0xFF3B82F6))),
-                      ),
-                      onSubmitted: (_) => _sendMessage(),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  CircleAvatar(
-                    backgroundColor: const Color(0xFF3B82F6),
-                    child: IconButton(
-                      icon: _isSending
-                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Icon(Icons.send, color: Colors.white),
-                      onPressed: _isSending ? null : _sendMessage,
-                    ),
-                  ),
-                ],
-              ),
+
+          _buildInputArea(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWelcomeMessage() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.smart_toy_outlined,
+            size: 80,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Welcome to your AI Financial Assistant!',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[700],
             ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Ask me anything about your finances:\n• "How much did I spend on food this month?"\n• "Show my budget overview"\n• "What\'s my income vs expenses?"',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          // Network status message
+          StreamBuilder<bool>(
+            stream: _getConnectionStatusStream(),
+              builder: (context, snapshot) {
+              final isConnected = snapshot.data ?? true; // Default to true to avoid false negatives
+              if (!isConnected) {
+                return Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange[200]!),
+                  ),
+                  child: Text(
+                    '⚠️ No internet connection detected.\nThe AI assistant requires internet to function.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.orange[700],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
           ),
         ],
       ),
     );
   }
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> _messagesStream() {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      return const Stream.empty();
-    }
-    return FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .collection('ai_messages')
-        .orderBy('createdAt')
-        .snapshots();
+  Widget _buildChatList() {
+                return ListView.builder(
+                  controller: _scrollController,
+      reverse: true,
+      padding: const EdgeInsets.all(16),
+      itemCount: _chatHistory.length,
+                  itemBuilder: (context, index) {
+        final message = _chatHistory[index];
+        final isUser = message['role'] == 'user';
+        
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+            children: [
+              if (!isUser) ...[
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor: const Color(0xFF3B82F6),
+                  child: Icon(
+                    Icons.smart_toy_outlined,
+                    size: 16,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Flexible(
+                      child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                    color: isUser ? const Color(0xFF3B82F6) : Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 5,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                        ),
+                        child: Text(
+                    isUser ? message['message'] : message['response'],
+                    style: TextStyle(
+                      color: isUser ? Colors.white : Colors.black87,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+              if (isUser) ...[
+                const SizedBox(width: 8),
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor: Colors.grey[300],
+                  child: Icon(
+                    Icons.person,
+                    size: 16,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ],
+                      ),
+                    );
+                  },
+                );
   }
 
-  Widget _typingBubble() {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: const [ _Dot(), SizedBox(width: 4), _Dot(), SizedBox(width: 4), _Dot() ],
-        ),
+  Widget _buildInputArea() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      decoration: InputDecoration(
+                hintText: 'Ask about your finances...',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(25),
+                  borderSide: BorderSide.none,
+                ),
+                        filled: true,
+                fillColor: Colors.grey[100],
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+              ),
+              onSubmitted: (_) {
+                print('Text field submitted');
+                _sendMessage();
+              },
+              onChanged: (value) {
+                print('Text field changed: "$value"');
+                setState(() {
+                  // Force rebuild to show current text
+                });
+              },
+            ),
+          ),
+          const SizedBox(width: 12),
+          ElevatedButton(
+            onPressed: () {
+              print('Send button tapped, isSending: $_isSending');
+              print('Button pressed! Current text: "${_controller.text}"');
+              
+              // Simple test response for debugging
+              if (_controller.text.trim().isEmpty) {
+                print('Empty text, showing test message');
+                _appendAssistant('Please type a message first! You can ask me about your expenses, budget, or any financial questions.');
+                return;
+              }
+              
+              if (!_isSending) {
+                print('Calling _sendMessage()');
+                _sendMessage();
+              } else {
+                print('Cannot send - already sending');
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _isSending ? Colors.grey[400] : const Color(0xFF3B82F6),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.all(12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(25),
+              ),
+              elevation: _isSending ? 0 : 2,
+            ),
+            child: _isSending
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.send,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Send',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+            ),
+          ),
+        ],
       ),
     );
   }
 }
-
-class _Dot extends StatefulWidget {
-  const _Dot();
-  @override
-  State<_Dot> createState() => _DotState();
-}
-
-class _DotState extends State<_Dot> with SingleTickerProviderStateMixin {
-  late final AnimationController _c;
-  late final Animation<double> _a;
-  @override
-  void initState() {
-    super.initState();
-    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))..repeat(reverse: true);
-    _a = Tween<double>(begin: 0.4, end: 1).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
-  }
-  @override
-  void dispose() { _c.dispose(); super.dispose(); }
-  @override
-  Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _a,
-      child: Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.black38, shape: BoxShape.circle)),
-    );
-  }
-}
-
-enum ChatRole { user, assistant }
 

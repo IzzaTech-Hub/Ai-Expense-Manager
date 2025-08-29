@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../services/auth_service.dart'; // adjust path as needed
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:uuid/uuid.dart';
+import '../../services/database_service.dart';
+import '../../models/transaction_model.dart';
+import '../../models/budget_model.dart';
 import '../../widgets/app_bottom_nav_bar.dart';
+import '../../routes/app_routes.dart';
 
 class _CategoryItem {
   final String name;
@@ -24,10 +26,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
   final _noteController = TextEditingController();
+  final DatabaseService _databaseService = DatabaseService();
+  final _uuid = Uuid();
 
   DateTime _selectedDate = DateTime.now();
   String _transactionType = 'Expense'; // default
   String? _selectedCategory;
+  bool _isSaving = false;
 
   final Map<String, List<String>> _categoryOptions = {
     'Income': ['Salary', 'Freelance', 'Investment', 'Gift', 'Other'],
@@ -66,389 +71,425 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       }
 
       final double amount = double.tryParse(_amountController.text) ?? 0.0;
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text("Please sign in to add real transactions"),
-            action: SnackBarAction(
-              label: 'Sign In',
-              onPressed: () {
-                Navigator.pushNamed(context, '/signin');
-              },
-            ),
-          ),
-        );
-        return;
-      }
-
+      
       if (_transactionType == 'Expense') {
-        final budgetQuery = await FirebaseFirestore.instance
-            .collection('budgets')
-            .where('userId', isEqualTo: user.uid)
-            .where('name', isEqualTo: _selectedCategory)
-            .limit(1)
-            .get();
-
-        if (budgetQuery.docs.isEmpty) {
+        // Check if budget exists for this category
+        final budgets = await _databaseService.getBudgetCategories();
+        final budgetExists = budgets.any((budget) => budget.name == _selectedCategory);
+        
+        if (!budgetExists) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("There is no budget for this category.")),
           );
           return;
         }
+      }
 
-        final budgetDoc = budgetQuery.docs.first;
-        final currentSpent = (budgetDoc['spent'] ?? 0).toDouble();
-        final newSpent = currentSpent + amount;
+      setState(() => _isSaving = true);
 
-        await budgetDoc.reference.update({'spent': newSpent});
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Expense added and budget updated.")),
+      try {
+        final transaction = Transaction(
+          id: _uuid.v4(),
+          userId: 'default_user',
+          amount: amount,
+          type: _transactionType.toLowerCase(),
+          category: _selectedCategory!,
+          date: _selectedDate,
+          notes: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+          createdAt: DateTime.now(),
         );
-        Navigator.pop(context);
-      } else {
-        // Add income transaction to Firestore
-        await FirebaseFirestore.instance.collection('transactions').add({
-          'userId': user.uid,
-          'type': 'income',
-          'amount': amount,
-          'category': _selectedCategory,
-          'note': _noteController.text,
-          'date': Timestamp.fromDate(_selectedDate),
-          'createdAt': FieldValue.serverTimestamp(),
-        });
 
+        await _databaseService.insertTransaction(transaction);
+
+        // Update budget spent amount if it's an expense
+        if (_transactionType == 'Expense') {
+          final budgets = await _databaseService.getBudgetCategories();
+          final budget = budgets.firstWhere((b) => b.name == _selectedCategory);
+          final updatedBudget = BudgetCategory(
+            id: budget.id,
+            name: budget.name,
+            allocated: budget.allocated,
+            spent: budget.spent + amount,
+            userId: budget.userId,
+            color: budget.color,
+            createdAt: budget.createdAt,
+          );
+          await _databaseService.updateBudgetCategory(updatedBudget);
+        }
+
+        if (!mounted) return;
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Income added.")),
+          SnackBar(
+            content: Text("${_transactionType} added successfully"),
+            backgroundColor: Colors.green,
+          ),
         );
-        Navigator.pop(context);
+        
+        Navigator.pop(context, true);
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Failed to add transaction: $e"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } finally {
+        if (mounted) setState(() => _isSaving = false);
       }
     }
   }
 
-  void _deleteIncomeCategory(BuildContext context, String category) async {
-    final user = AuthService().currentUser;
-    if (user == null) return;
-    final query = await FirebaseFirestore.instance
-        .collection('transactions')
-        .where('userId', isEqualTo: user.uid)
-        .where('type', isEqualTo: 'income')
-        .where('category', isEqualTo: category)
-        .get();
-    for (var doc in query.docs) {
-      await doc.reference.delete();
-    }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('All income transactions for $category deleted.')),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    const fieldColor = Color.fromARGB(255, 220, 220, 216);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.white,
         elevation: 0,
-        automaticallyImplyLeading: false,
-        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: Text(
           'Add Transaction',
           style: GoogleFonts.poppins(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
           ),
         ),
+        centerTitle: true,
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+      body: SafeArea(
         child: Form(
           key: _formKey,
-          child: ListView(
-            children: [
-              // Toggle Button
-              Container(
-                padding: const EdgeInsets.all(6),
-                margin: const EdgeInsets.only(bottom: 20),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.yellow.shade300),
-                  borderRadius: BorderRadius.circular(20),
-                  color: Colors.white,
+          child: SingleChildScrollView(
+            padding: EdgeInsets.all(screenWidth * 0.04),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Transaction Type Selection
+                Text(
+                  'Transaction Type',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
                 ),
-                child: Row(
+                const SizedBox(height: 16),
+                Row(
                   children: [
-                    _buildToggleButton(
-                      'Expense',
-                      _transactionType == 'Expense',
-                      color: Colors.red,
-                    ),
-                    _buildToggleButton(
-                      'Income',
-                      _transactionType == 'Income',
-                      color: Colors.green,
-                    ),
-                  ],
-                ),
-              ),
-
-              _buildLabel('Amount'),
-              _buildAmountField(fieldColor),
-              const SizedBox(height: 20),
-
-              _buildLabel('Description'),
-              _buildNoteField(fieldColor),
-              const SizedBox(height: 20),
-
-              _buildLabel('Category'),
-              _buildCategoryPicker(),
-              const SizedBox(height: 20),
-
-              _buildLabel('Date'),
-              _buildDatePicker(fieldColor),
-              const SizedBox(height: 30),
-
-              // Add Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        _transactionType == 'Expense'
-                            ? Colors.red
-                            : Colors.green,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                  ),
-                  child: Text(
-                    _transactionType == 'Expense'
-                        ? 'Add Expense'
-                        : 'Add Income',
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-            ],
-          ),
-        ),
-      ),
-
-      // Bottom Nav
-      bottomNavigationBar: AppBottomNavBar(currentIndex: 2),
-    );
-  }
-
-  // WIDGETS
-
-  Widget _buildToggleButton(
-    String label,
-    bool selected, {
-    required Color color,
-  }) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            _transactionType = label;
-            _selectedCategory = null; // Reset selected category
-          });
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: selected ? color : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: TextStyle(
-              color: selected ? Colors.white : Colors.black54,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLabel(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Text(
-        text,
-        style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500),
-      ),
-    );
-  }
-
-  Widget _buildAmountField(Color fieldColor) {
-    return Container(
-      decoration: BoxDecoration(
-        color: fieldColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.yellow.shade200),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          const Text('\$', style: TextStyle(color: Colors.black54)),
-          const SizedBox(width: 10),
-          Expanded(
-            child: TextFormField(
-              controller: _amountController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                hintText: '0.00',
-                border: InputBorder.none,
-              ),
-              validator: (val) {
-                if (val == null || val.isEmpty) return 'Enter amount';
-                if (double.tryParse(val) == null) return 'Enter valid number';
-                return null;
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNoteField(Color fieldColor) {
-    return TextFormField(
-      controller: _noteController,
-      decoration: InputDecoration(
-        hintText: 'What was this for?',
-        filled: true,
-        fillColor: fieldColor,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCategoryPicker() {
-    if (_transactionType == 'Expense') {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 0),
-        child: GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          crossAxisSpacing: 14,
-          mainAxisSpacing: 14,
-          physics: const NeverScrollableScrollPhysics(),
-          childAspectRatio: 3.7,
-          children: _expenseCategories.map((cat) {
-            final bool selected = _selectedCategory == cat.name;
-            return GestureDetector(
-              onTap: () => setState(() => _selectedCategory = cat.name),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: selected ? cat.color.withOpacity(0.15) : Colors.white,
-                  border: Border.all(
-                    color: selected ? cat.color : Colors.transparent,
-                    width: 2,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  vertical: 8,
-                  horizontal: 10,
-                ),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: cat.color,
-                      radius: 16,
-                      child: Icon(
-                        cat.icon,
-                        color: Colors.white,
-                        size: 18,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
                     Expanded(
-                      child: Text(
-                        cat.name,
-                        style: GoogleFonts.poppins(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.black87,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      child: _buildTypeButton('Expense', Icons.remove_circle_outline, Colors.red),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildTypeButton('Income', Icons.add_circle_outline, Colors.green),
                     ),
                   ],
                 ),
-              ),
-            );
-          }).toList(),
-        ),
-      );
-    } else {
-      final categories = _categoryOptions[_transactionType]!;
-      return Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.yellow.shade200),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: categories.map((cat) {
-            final isSelected = _selectedCategory == cat;
-            return GestureDetector(
-              onTap: () => setState(() => _selectedCategory = cat),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
+
+                const SizedBox(height: 32),
+
+                // Amount Input
+                Text(
+                  'Amount',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
                 ),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  color: isSelected ? Colors.green.shade100 : Colors.grey.shade100,
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _amountController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    hintText: 'Enter amount',
+                    prefixText: 'PKR ',
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter an amount';
+                    }
+                    final amount = double.tryParse(value);
+                    if (amount == null || amount <= 0) {
+                      return 'Please enter a valid amount';
+                    }
+                    return null;
+                  },
                 ),
-                child: Text(cat),
-              ),
-            );
-          }).toList(),
+
+                const SizedBox(height: 32),
+
+                // Category Selection
+                Text(
+                  'Category',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildCategoryGrid(),
+
+                const SizedBox(height: 32),
+
+                // Date Selection
+                Text(
+                  'Date',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                InkWell(
+                  onTap: _pickDate,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.calendar_today, color: Colors.grey[600]),
+                        const SizedBox(width: 12),
+                        Text(
+                          DateFormat('MMM dd, yyyy').format(_selectedDate),
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const Spacer(),
+                        Icon(Icons.arrow_drop_down, color: Colors.grey[600]),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+
+                // Notes Input
+                Text(
+                  'Notes (Optional)',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _noteController,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    hintText: 'Add a note about this transaction...',
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    contentPadding: const EdgeInsets.all(16),
+                  ),
+                ),
+
+                const SizedBox(height: 40),
+
+                // Submit Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: _isSaving ? null : _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF3B82F6),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: _isSaving
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : Text(
+                            'Add Transaction',
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
+
+                const SizedBox(height: 80),
+              ],
+            ),
+          ),
         ),
-      );
-    }
+      ),
+              bottomNavigationBar: AppBottomNavBar(
+          currentIndex: 2,
+          onTap: (index) {
+            switch (index) {
+              case 0:
+                Navigator.pushReplacementNamed(context, AppRoutes.dashboard);
+                break;
+              case 1:
+                Navigator.pushReplacementNamed(context, AppRoutes.analytics);
+                break;
+              case 2:
+                // Already on add transaction
+                break;
+              case 3:
+                Navigator.pushReplacementNamed(context, AppRoutes.budget);
+                break;
+              case 4:
+                Navigator.pushReplacementNamed(context, AppRoutes.aiAssistant);
+                break;
+            }
+          },
+        ),
+    );
   }
 
-  Widget _buildDatePicker(Color fieldColor) {
+  Widget _buildTypeButton(String type, IconData icon, Color color) {
+    final isSelected = _transactionType == type;
+    
     return GestureDetector(
-      onTap: _pickDate,
+      onTap: () {
+        setState(() {
+          _transactionType = type;
+          _selectedCategory = null; // Reset category when type changes
+        });
+      },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: fieldColor,
+          color: isSelected ? color.withOpacity(0.1) : Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.yellow.shade200),
+          border: Border.all(
+            color: isSelected ? color : Colors.grey[300]!,
+            width: isSelected ? 2 : 1,
+          ),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Column(
           children: [
-            Text(DateFormat('MM/dd/yyyy').format(_selectedDate)),
-            const Icon(Icons.calendar_today),
+            Icon(
+              icon,
+              color: isSelected ? color : Colors.grey[600],
+              size: 32,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              type,
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                color: isSelected ? color : Colors.grey[600],
+              ),
+            ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildCategoryGrid() {
+    final categories = _transactionType == 'Income' 
+        ? _categoryOptions['Income']!.map((cat) => _CategoryItem(cat, Icons.attach_money, Colors.green)).toList()
+        : _expenseCategories;
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 3.5,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+      ),
+      itemCount: categories.length,
+      itemBuilder: (context, index) {
+        final category = categories[index];
+        final isSelected = _selectedCategory == category.name;
+        
+        return GestureDetector(
+          onTap: () {
+            setState(() {
+              _selectedCategory = category.name;
+            });
+          },
+          child: Container(
+            decoration: BoxDecoration(
+              color: isSelected ? category.color.withOpacity(0.1) : Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isSelected ? category.color : Colors.grey[300]!,
+                width: isSelected ? 2 : 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 5,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  category.icon,
+                  color: isSelected ? category.color : Colors.grey[600],
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    category.name,
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      color: isSelected ? category.color : Colors.black87,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

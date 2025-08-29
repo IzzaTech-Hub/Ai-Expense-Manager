@@ -1,21 +1,40 @@
 {
   "project_info": {
-    "project_number": "59093251814",
-    "project_id": "expense-manager-a7e2e",
-    "storage_bucket": "expense-manager-a7e2e.firebasestorage.app"
+    "project_number": "149480273715",
+    "project_id": "ai-expense-manager-2de58",
+    "storage_bucket": "ai-expense-manager-2de58.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:59093251814:android:dccaea001b3c321a20ed27",
+        "mobilesdk_app_id": "1:149480273715:android:91439b38c08fb69a20b046",
         "android_client_info": {
-          "package_name": "com.example.flutter_application_madproject"
+          "package_name": "com.ai.expense.manager.savings"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDqXkFCIX0pnJRE_wtDG_FKKXpIVgnPd3A"
+          "current_key": "AIzaSyALeHsxJ7Y0dVKap8IVZL4n7hK-Otmz5pU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:149480273715:android:9ee36dec8e56090d20b046",
+        "android_client_info": {
+          "package_name": "com.ai.expensemanager.savings"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyALeHsxJ7Y0dVKap8IVZL4n7hK-Otmz5pU"
         }
       ],
       "services": {

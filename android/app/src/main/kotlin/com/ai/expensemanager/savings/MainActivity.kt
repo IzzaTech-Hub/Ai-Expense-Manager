@@ -1,4 +1,4 @@
-package com.example.flutter_application_madproject
+package com.ai.expensemanager.savings
 
 import io.flutter.embedding.android.FlutterActivity
 

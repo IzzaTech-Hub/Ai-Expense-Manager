@@ -21,7 +21,7 @@ class Goal {
     required this.userId,
   });
 
-  Map<String, dynamic> toJson() => {
+  Map<String, dynamic> toMap() => {
         'id': id,
         'title': title,
         'targetAmount': targetAmount,
@@ -32,16 +32,18 @@ class Goal {
         'userId': userId,
       };
 
-  factory Goal.fromJson(Map<String, dynamic> json) => Goal(
-        id: json['id'] ?? '',
-        title: json['title'] ?? '',
-        targetAmount: (json['targetAmount'] ?? 0).toDouble(),
-        currentAmount: (json['currentAmount'] ?? 0).toDouble(),
-        deadline: DateTime.parse(json['deadline']),
-        category: json['category'],
-        color: Color(json['color'] ?? 0xFF000000),
-        userId: json['userId'] ?? '',
+  factory Goal.fromMap(Map<String, dynamic> map) => Goal(
+        id: map['id'] ?? '',
+        title: map['title'] ?? '',
+        targetAmount: (map['targetAmount'] ?? 0).toDouble(),
+        currentAmount: (map['currentAmount'] ?? 0).toDouble(),
+        deadline: DateTime.parse(map['deadline']),
+        category: map['category'],
+        color: Color(map['color'] ?? 0xFF000000),
+        userId: map['userId'] ?? '',
       );
 
-  // Add fromMap/toMap if needed, converting color to/from int if using database
+  Map<String, dynamic> toJson() => toMap();
+
+  factory Goal.fromJson(Map<String, dynamic> json) => Goal.fromMap(json);
 }

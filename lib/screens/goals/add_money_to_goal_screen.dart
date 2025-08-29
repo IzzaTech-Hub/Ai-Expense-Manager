@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../models/goal_model.dart';
-import '../../services/goal_service.dart';
+import '../../services/database_service.dart';
 
 class AddMoneyToGoalScreen extends StatefulWidget {
   final Goal goal;
@@ -14,6 +14,7 @@ class AddMoneyToGoalScreen extends StatefulWidget {
 
 class _AddMoneyToGoalScreenState extends State<AddMoneyToGoalScreen> {
   final TextEditingController _amountController = TextEditingController();
+  final DatabaseService _databaseService = DatabaseService();
   double _amount = 0.0;
   bool _isSaving = false;
 
@@ -31,18 +32,38 @@ class _AddMoneyToGoalScreenState extends State<AddMoneyToGoalScreen> {
 
     try {
       final newCurrentAmount = widget.goal.currentAmount + _amount;
-      await GoalService().updateGoalAmount(widget.goal.id, newCurrentAmount);
+      final updatedGoal = Goal(
+        id: widget.goal.id,
+        title: widget.goal.title,
+        targetAmount: widget.goal.targetAmount,
+        currentAmount: newCurrentAmount,
+        deadline: widget.goal.deadline,
+        category: widget.goal.category,
+        color: widget.goal.color,
+        userId: widget.goal.userId,
+      );
+      
+      await _databaseService.updateGoal(updatedGoal);
+      
+      if (!mounted) return;
       
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Money added successfully!')),
+        const SnackBar(
+          content: Text('Money added successfully!'),
+          backgroundColor: Colors.green,
+        ),
       );
       Navigator.pop(context, _amount);
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to add money: ${e.toString()}')),
+        SnackBar(
+          content: Text('Failed to add money: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
       );
     } finally {
-      setState(() => _isSaving = false);
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
@@ -252,7 +273,7 @@ class _AddMoneyToGoalScreenState extends State<AddMoneyToGoalScreen> {
               Navigator.pushNamed(context, '/budget');
               break;
             case 4:
-              Navigator.pushNamed(context, '/profile');
+              Navigator.pushNamed(context, '/goals');
               break;
           }
         },
@@ -270,7 +291,7 @@ class _AddMoneyToGoalScreenState extends State<AddMoneyToGoalScreen> {
             icon: Icon(Icons.account_balance_wallet),
             label: 'Budget',
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          BottomNavigationBarItem(icon: Icon(Icons.flag), label: 'Goals'),
         ],
       ),
     );

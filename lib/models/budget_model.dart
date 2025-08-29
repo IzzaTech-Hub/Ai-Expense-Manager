@@ -1,6 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
-
 class BudgetCategory {
   final String id;
   final String name;
@@ -20,28 +17,28 @@ class BudgetCategory {
     required this.createdAt,
   });
 
-  double get remaining => allocated - spent;
-
-  Map<String, dynamic> toJson() => {
+  Map<String, dynamic> toMap() => {
         'id': id,
         'name': name,
         'allocated': allocated,
         'spent': spent,
         'userId': userId,
         'color': color,
-        'createdAt': createdAt,
+        'createdAt': createdAt.toIso8601String(),
       };
 
-  factory BudgetCategory.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  factory BudgetCategory.fromMap(Map<String, dynamic> map) {
     return BudgetCategory(
-      id: doc.id,
-      name: data['name'] ?? '',
-      allocated: (data['allocated'] ?? 0).toDouble(),
-      spent: (data['spent'] ?? 0).toDouble(),
-      userId: data['userId'] ?? '',
-      color: data['color'] ?? 0,
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      id: map['id'] ?? '',
+      name: map['name'] ?? '',
+      allocated: (map['allocated'] ?? 0).toDouble(),
+      spent: (map['spent'] ?? 0).toDouble(),
+      userId: map['userId'] ?? '',
+      color: map['color'] ?? 0,
+      createdAt: DateTime.parse(map['createdAt']),
     );
   }
+
+  Map<String, dynamic> toJson() => toMap();
+  factory BudgetCategory.fromJson(Map<String, dynamic> json) => BudgetCategory.fromMap(json);
 }

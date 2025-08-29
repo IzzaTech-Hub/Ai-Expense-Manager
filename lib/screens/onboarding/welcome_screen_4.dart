@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../routes/app_routes.dart';
-import '../../models/dashboard_data.dart';
 
 class WelcomeScreen4 extends StatelessWidget {
   const WelcomeScreen4({super.key});
@@ -73,25 +72,7 @@ class WelcomeScreen4 extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: () {
                     // Navigate to Dashboard with data using named route and arguments
-                    Navigator.pushNamed(
-                      context,
-                      AppRoutes.dashboardBasic,
-                      arguments: DashboardData(
-                        totalBalance: 2380,
-                        totalIncome: 5800,
-                        totalExpenses: 3420,
-                        budgetLimit: 5800,
-                        expenseCategories: {
-                          'Food': 850,
-                          'Bills': 480,
-                          'Shopping': 380,
-                          'Transport': 420,
-                          'Entertainment': 320,
-                        },
-                        monthlyIncome: [5800, 5900, 6000, 6100, 6000],
-                        monthlyExpense: [2900, 3000, 2700, 2800, 2600],
-                      ),
-                    );
+                    Navigator.pushReplacementNamed(context, AppRoutes.dashboard);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF3B82F6),
@@ -123,7 +104,7 @@ class WelcomeScreen4 extends StatelessWidget {
               // Back Button
               TextButton(
                 onPressed: () {
-                  Navigator.pushReplacementNamed(context, AppRoutes.welcome3);
+                  Navigator.pop(context);
                 },
                 child: const Text(
                   'Back',

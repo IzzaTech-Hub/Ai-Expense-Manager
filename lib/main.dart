@@ -1,83 +1,53 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart'; // Generated via `flutterfire configure`
-import 'routes/app_routes.dart';
 import 'package:provider/provider.dart';
+import 'package:api_key_pool/api_key_pool.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'providers/profile_provider.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
+import 'routes/app_routes.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  // Initialize Firebase with platform-specific options
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-
-  runApp(
-    ChangeNotifierProvider(
-      create: (_) => ProfileProvider(),
-      child: const MyApp(),
-    ),
-  );
-
-  // FCM foreground message handler
-  FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-    // For now, just print the message since we removed local notifications
-    print('Received FCM message: ${message.notification?.title}');
-  });
-
-  // FCM tap handler when app is terminated
-  FirebaseMessaging.instance.getInitialMessage().then((RemoteMessage? message) {
-    if (message != null) {
-      final context = navigatorKey.currentContext;
-      final route = message.data['route'] ?? '/profileScreen';
-      final goalId = message.data['goalId'];
-      if (context != null) {
-        Navigator.pushNamed(
-          context,
-          route,
-          arguments: goalId != null ? {'goalId': goalId} : null,
-        );
-      }
-    }
-  });
-
-  // FCM tap handler when app is in background
-  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-    final context = navigatorKey.currentContext;
-    final route = message.data['route'] ?? '/profileScreen';
-    final goalId = message.data['goalId'];
-    if (context != null) {
-      Navigator.pushNamed(
-        context,
-        route,
-        arguments: goalId != null ? {'goalId': goalId} : null,
-      );
-    }
-  });
+  try {
+    print('🚀 Starting Expense Manager app...');
+    print('🔑 Initializing ApiKeyPool...');
+    
+    // Initialize ApiKeyPool
+    await ApiKeyPool.init('expense manager');
+    print('✅ ApiKeyPool initialized successfully');
+    
+    print('🎯 Running MyApp...');
+    runApp(const MyApp());
+  } catch (e) {
+    print('❌ Error during app initialization: $e');
+    print('🔄 Continuing with app launch...');
+    runApp(const MyApp());
+  }
 }
-
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
+ // 🔹 Firebase Analytics instance
+  static FirebaseAnalytics analytics = FirebaseAnalytics.instance;
+  static FirebaseAnalyticsObserver observer =
+      FirebaseAnalyticsObserver(analytics: analytics);
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorKey: navigatorKey,
-      title: 'Expenso',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        fontFamily: 'Poppins',
-        scaffoldBackgroundColor: const Color(0xFFF9FAFB),
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF3B82F6)),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ProfileProvider()),
+      ],
+      child: MaterialApp(
+        title: 'Expense Manager',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF3B82F6)),
+          useMaterial3: true,
+        ),
+        initialRoute: AppRoutes.splash,
+        onGenerateRoute: AppRoutes.generateRoute,
       ),
-      // Set the initial route of your app
-      initialRoute: AppRoutes.dashboardBasic,
-
-      // Use your centralized route handler
-      onGenerateRoute: AppRoutes.generateRoute,
     );
   }
 }

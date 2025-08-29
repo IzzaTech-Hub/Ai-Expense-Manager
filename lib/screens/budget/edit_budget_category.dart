@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../services/database_service.dart';
+import '../../models/budget_model.dart';
 
 class _CategoryItem {
   final String name;
@@ -30,6 +31,7 @@ class EditBudgetCategory extends StatefulWidget {
 
 class _EditBudgetCategoryState extends State<EditBudgetCategory> {
   final _formKey = GlobalKey<FormState>();
+  final DatabaseService _databaseService = DatabaseService();
   late TextEditingController _nameController;
   late TextEditingController _allocatedController;
 
@@ -72,23 +74,27 @@ class _EditBudgetCategoryState extends State<EditBudgetCategory> {
     if (_formKey.currentState!.validate()) {
       setState(() => _isSaving = true);
       try {
-        await FirebaseFirestore.instance
-            .collection('budgets')
-            .doc(widget.categoryId)
-            .update({
-          'name': _selectedCategory,
-          'allocated': double.tryParse(_allocatedController.text) ?? widget.initialLimit,
-          'color': _selectedColor,
-        });
+        final updatedCategory = BudgetCategory(
+          id: widget.categoryId,
+          name: _selectedCategory,
+          allocated: double.tryParse(_allocatedController.text) ?? widget.initialLimit,
+          spent: widget.spentAmount,
+          userId: 'default_user',
+          color: _selectedColor,
+          createdAt: DateTime.now(),
+        );
+        
+        await _databaseService.updateBudgetCategory(updatedCategory);
+        
         if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Budget category updated")));
-        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Budget category updated successfully")),
+        );
+        Navigator.pop(context, true);
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update: \\${e.toString()}')),
+          SnackBar(content: Text('Failed to update: ${e.toString()}')),
         );
       } finally {
         if (mounted) setState(() => _isSaving = false);
@@ -99,19 +105,16 @@ class _EditBudgetCategoryState extends State<EditBudgetCategory> {
   void _deleteCategory() async {
     setState(() => _isDeleting = true);
     try {
-      await FirebaseFirestore.instance
-          .collection('budgets')
-          .doc(widget.categoryId)
-          .delete();
+      await _databaseService.deleteBudgetCategory(widget.categoryId);
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Budget category deleted")));
-      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Budget category deleted")),
+      );
+      Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to delete: \\${e.toString()}')),
+        SnackBar(content: Text('Failed to delete: ${e.toString()}')),
       );
     } finally {
       if (mounted) setState(() => _isDeleting = false);
@@ -120,444 +123,358 @@ class _EditBudgetCategoryState extends State<EditBudgetCategory> {
 
   @override
   Widget build(BuildContext context) {
-    final double spent = widget.spentAmount;
-    final double limit =
-        double.tryParse(_allocatedController.text) ?? widget.initialLimit;
-    final double percentUsed = limit > 0 ? (spent / limit).clamp(0, 1) : 0;
-
-    const blue = Color(0xFF3B82F6);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isTablet = screenWidth > 600;
+    final isLargeScreen = screenWidth > 900;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
-      resizeToAvoidBottomInset: true,
-      body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.only(bottom: 32),
-            children: [
-              // --- Custom AppBar ---
-              Padding(
-                padding: const EdgeInsets.only(
-                  top: 12,
-                  left: 8,
-                  right: 8,
-                  bottom: 0,
-                ),
-                child: SizedBox(
-                  height: 54,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Centered icon and title
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            decoration: const BoxDecoration(
-                              color: blue,
-                              shape: BoxShape.circle,
-                            ),
-                            padding: const EdgeInsets.all(8),
-                            child: const Icon(
-                              Icons.radio_button_checked,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Edit Budget',
-                            style: GoogleFonts.poppins(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: blue,
-                            ),
-                          ),
-                        ],
+      appBar: AppBar(
+        title: Text(
+          'Edit Budget Category',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          onPressed: () => Navigator.pop(context),
+        ),
+        actions: [
+          if (!_isDeleting)
+            TextButton(
+              onPressed: _isSaving ? null : _submit,
+              child: _isSaving
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(
+                      'Save',
+                      style: GoogleFonts.poppins(
+                        color: const Color(0xFF3B82F6),
+                        fontWeight: FontWeight.w600,
                       ),
-                      // Back button at left
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: IconButton(
-                          icon: const Icon(Icons.arrow_back, color: blue),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // --- Category Name Card ---
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 6,
-                ),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.07),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 18,
-                      horizontal: 18,
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+            ),
+        ],
+      ),
+      body: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(isLargeScreen ? 32 : 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Progress Overview Card
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF3B82F6), Color(0xFF60A5FA)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF3B82F6).withOpacity(0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Current Progress',
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
                       children: [
-                        Row(
-                          children: [
-                            Container(
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFD0E5FC), // light blue
-                                shape: BoxShape.circle,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Allocated',
+                                style: GoogleFonts.poppins(
+                                  color: Colors.white70,
+                                  fontSize: 14,
+                                ),
                               ),
-                              padding: const EdgeInsets.all(8),
-                              child: const Icon(
-                                Icons.radio_button_checked,
-                                color: blue,
-                                size: 20,
+                              Text(
+                                'PKR ${widget.initialLimit.toStringAsFixed(0)}',
+                                style: GoogleFonts.poppins(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              'Category',
-                              style: GoogleFonts.poppins(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
-                          value: _selectedCategory,
-                          items: _categories.map((cat) {
-                            return DropdownMenuItem<String>(
-                              value: cat.name,
-                              child: Row(
-                                children: [
-                                  CircleAvatar(
-                                    backgroundColor: cat.color,
-                                    radius: 12,
-                                    child: Icon(cat.icon, color: Colors.white, size: 16),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(cat.name),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (val) {
-                            if (val != null) {
-                              setState(() {
-                                _selectedCategory = val;
-                                final found = _categories.firstWhere((cat) => cat.name == val);
-                                _selectedColor = found.color.value;
-                                _nameController.text = val;
-                              });
-                            }
-                          },
-                          decoration: InputDecoration(
-                            filled: true,
-                            fillColor: const Color(0xFFF9FAFB),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
-                            ),
+                            ],
                           ),
-                          validator: (val) => val == null || val.isEmpty ? 'Select a category' : null,
+                        ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Spent',
+                                style: GoogleFonts.poppins(
+                                  color: Colors.white70,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              Text(
+                                'PKR ${widget.spentAmount.toStringAsFixed(0)}',
+                                style: GoogleFonts.poppins(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Remaining',
+                                style: GoogleFonts.poppins(
+                                  color: Colors.white70,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              Text(
+                                'PKR ${(widget.initialLimit - widget.spentAmount).toStringAsFixed(0)}',
+                                style: GoogleFonts.poppins(
+                                  color: (widget.initialLimit - widget.spentAmount) >= 0 
+                                      ? Colors.white 
+                                      : Colors.red[200]!,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
-                  ),
-                ),
-              ),
-
-              // --- Monthly Budget Amount Card ---
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 6,
-                ),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.07),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 18,
-                      horizontal: 18,
-                    ),
-                    child: Column(
+                    const SizedBox(height: 20),
+                    Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            Container(
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFD0E5FC), // light blue
-                                shape: BoxShape.circle,
-                              ),
-                              padding: const EdgeInsets.all(8),
-                              child: const Icon(
-                                Icons.attach_money,
-                                color: blue,
-                                size: 20,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              'Allocated Amount',
-                              style: GoogleFonts.poppins(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _allocatedController,
-                          keyboardType: TextInputType.number,
-                          style: GoogleFonts.poppins(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          decoration: InputDecoration(
-                            prefixText: '	',
-                            prefixStyle: GoogleFonts.poppins(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey[700],
-                            ),
-                            hintText: 'e.g. 800',
-                            filled: true,
-                            fillColor: const Color(0xFFF9FAFB),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
-                            ),
-                          ),
-                          validator: (val) {
-                            if (val == null || val.isEmpty) {
-                              return 'Enter amount';
-                            }
-                            if (double.tryParse(val) == null) {
-                              return 'Enter valid number';
-                            }
-                            return null;
-                          },
-                          onChanged: (_) => setState(() {}),
-                        ),
-                        const SizedBox(height: 10),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              'Spent: PKR ${widget.spentAmount.toStringAsFixed(0)}',
-                              style: GoogleFonts.poppins(fontSize: 13, color: Colors.red),
+                              'Progress',
+                              style: GoogleFonts.poppins(
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
                             ),
                             Text(
-                              'Remaining: PKR ${(double.tryParse(_allocatedController.text) ?? widget.initialLimit - widget.spentAmount).toStringAsFixed(0)}',
-                              style: GoogleFonts.poppins(fontSize: 13, color: Colors.green),
+                              '${((widget.spentAmount / widget.initialLimit) * 100).toStringAsFixed(1)}%',
+                              style: GoogleFonts.poppins(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ],
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              // --- Current Progress Card ---
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 6,
-                ),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE6F0FA), // very light blue
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 18,
-                      horizontal: 18,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Center(
-                          child: Text(
-                            'Current Progress',
-                            style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
                         const SizedBox(height: 8),
-                        Center(
-                          child: Text(
-                            'Spent: \$${spent.toStringAsFixed(0)}',
-                            style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.w500,
-                              fontSize: 14,
-                            ),
+                        LinearProgressIndicator(
+                          value: (widget.spentAmount / widget.initialLimit).clamp(0.0, 1.0),
+                          backgroundColor: Colors.white.withOpacity(0.3),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            (widget.spentAmount / widget.initialLimit) > 0.8 
+                                ? Colors.red[200]! 
+                                : Colors.white,
                           ),
-                        ),
-                        const SizedBox(height: 14),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: LinearProgressIndicator(
-                            value: percentUsed,
-                            minHeight: 10,
-                            backgroundColor: Colors.grey[300],
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                              blue,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Center(
-                          child: Text(
-                            '${(percentUsed * 100).toStringAsFixed(1)}% used',
-                            style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.w500,
-                              fontSize: 13,
-                              color: Colors.grey[700],
-                            ),
-                          ),
+                          minHeight: 8,
                         ),
                       ],
                     ),
-                  ),
+                  ],
                 ),
               ),
 
-              // --- Save Changes Button (with blue gradient background) ---
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
-                ),
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF3B82F6), Color(0xFF60A5FA)],
-                    ),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.save, color: Colors.white),
-                    label:
-                        _isSaving
-                            ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-                            : const Text(
-                              'Save Changes',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: Colors.white, // white text
-                              ),
-                            ),
-                    onPressed: _isSaving ? null : _submit,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      textStyle: GoogleFonts.poppins(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: Colors.white, // white text
-                      ),
-                      elevation: 0,
-                    ),
-                  ),
+              const SizedBox(height: 32),
+
+              // Category Selection
+              Text(
+                'Category',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
                 ),
               ),
-
-              // --- Delete Button (blue background, white text) ---
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 2,
+              const SizedBox(height: 16),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: isLargeScreen ? 4 : (isTablet ? 3 : 2),
+                  childAspectRatio: 3.5,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
                 ),
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.delete, color: Colors.white),
-                  label:
-                      _isDeleting
-                          ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                          : const Text(
-                            'Delete Budget Category',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: Colors.white, // white text
+                itemCount: _categories.length,
+                itemBuilder: (context, index) {
+                  final category = _categories[index];
+                  final isSelected = _selectedCategory == category.name;
+                  
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedCategory = category.name;
+                        _selectedColor = category.color.value;
+                      });
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isSelected ? category.color.withOpacity(0.1) : Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isSelected ? category.color : Colors.grey[300]!,
+                          width: isSelected ? 2 : 1,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 5,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            category.icon,
+                            color: isSelected ? category.color : Colors.grey[600],
+                            size: 24,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              category.name,
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                                color: isSelected ? category.color : Colors.black87,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 32),
+
+              // Budget Limit Input
+              Text(
+                'Budget Limit',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _allocatedController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  hintText: 'Enter new budget limit',
+                  prefixText: 'PKR ',
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a budget limit';
+                  }
+                  final amount = double.tryParse(value);
+                  if (amount == null || amount <= 0) {
+                    return 'Please enter a valid amount';
+                  }
+                  if (amount < widget.spentAmount) {
+                    return 'Budget limit cannot be less than already spent amount';
+                  }
+                  return null;
+                },
+              ),
+
+              const SizedBox(height: 32),
+
+              // Delete Button
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
                   onPressed: _isDeleting ? null : _deleteCategory,
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: blue,
+                    backgroundColor: Colors.red[600],
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    textStyle: GoogleFonts.poppins(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: Colors.white, // white text
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     elevation: 0,
                   ),
+                  child: _isDeleting
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.delete, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Delete Category',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
                 ),
               ),
+
+              const SizedBox(height: 32),
             ],
           ),
         ),
