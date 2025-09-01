@@ -1,9 +1,7 @@
-import 'dart:math';
 import 'dart:developer' as dp;
 
 // import 'package:ai_web_analyzer/app/utills/remoteconfig_variables.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
-import 'package:flutter/foundation.dart';
 // import 'package:flutter_gemini/flutter_gemini.dart';
 // import 'package:get/get.dart';
 import 'package:expense_manager/core/utils/app_strings.dart';
@@ -21,17 +19,20 @@ class RemoteConfigService {
   final remoteConfig = FirebaseRemoteConfig.instance;
 
   Future<void> initialize() async {
-    GetRemoteConfig().then((value) {
-      SetRemoteConfig();
+    try {
+      await GetRemoteConfig();
+      await SetRemoteConfig();
 
       remoteConfig.onConfigUpdated.listen((event) async {
         print("Remote Updated");
-        //  await remoteConfig.activate();
-        SetRemoteConfig();
-
-        // Use the new config values here.
+        await remoteConfig.activate();
+        await SetRemoteConfig();
       });
-    });
+    } catch (e) {
+      print("Remote Config initialization error: $e");
+      // Set default values if remote config fails
+      AppStrings.gemini_model = "gemini-2.0-flash";
+    }
   }
 
   Future GetRemoteConfig() async {
@@ -54,7 +55,12 @@ class RemoteConfigService {
   }
 
   Future SetRemoteConfig() async {
-    AppStrings.gemini_model = remoteConfig.getString('gemini_model');
-    dp.log(AppStrings.gemini_model);
+    try {
+      AppStrings.gemini_model = remoteConfig.getString('gemini_model');
+      dp.log("Gemini model set to: ${AppStrings.gemini_model}");
+    } catch (e) {
+      print("Error setting remote config: $e");
+      AppStrings.gemini_model = "gemini-2.0-flash"; // fallback
+    }
   }
 }

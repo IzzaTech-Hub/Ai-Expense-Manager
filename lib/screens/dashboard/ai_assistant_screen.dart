@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/ai_service.dart';
 import '../../services/database_service.dart';
+import '../../services/start_feedback_widget.dart';
 import '../../models/user_model.dart';
 import '../../routes/app_routes.dart';
 
@@ -183,8 +184,8 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     final userText = _controller.text.trim();
     if (userText.isEmpty || _isSending) {
       print('Cannot send: empty text or already sending');
-        return;
-      }
+      return;
+    }
 
     print('Sending message: $userText');
     
@@ -287,8 +288,6 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     });
   }
 
-
-
   Future<void> _clearChatHistory() async {
     try {
       if (_currentUser != null) {
@@ -322,8 +321,6 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
       }
     }
   }
-
-
 
   void _showClearChatDialog() {
     showDialog(
@@ -395,7 +392,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                       onPressed: () => _refreshConnectionStatus(),
                       tooltip: 'Refresh Connection',
                     ),
-          IconButton(
+                    IconButton(
                       icon: const Icon(Icons.info_outline, size: 18),
                       onPressed: () => _showConnectionInfo(),
                       tooltip: 'Connection Info',
@@ -434,7 +431,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
               icon: const Icon(Icons.delete_sweep, color: Colors.red),
               onPressed: () => _showClearChatDialog(),
               tooltip: 'Clear Chat History',
-          ),
+            ),
         ],
       ),
       body: SafeArea(
@@ -445,7 +442,6 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                   ? _buildWelcomeMessage()
                   : _buildChatList(),
             ),
-
             _buildInputArea(),
           ],
         ),
@@ -486,7 +482,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
           // Network status message
           StreamBuilder<bool>(
             stream: _getConnectionStatusStream(),
-              builder: (context, snapshot) {
+            builder: (context, snapshot) {
               final isConnected = snapshot.data ?? true; // Default to true to avoid false negatives
               if (!isConnected) {
                 return Container(
@@ -515,73 +511,91 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   }
 
   Widget _buildChatList() {
-                return ListView.builder(
-                  controller: _scrollController,
+    return ListView.builder(
+      controller: _scrollController,
       reverse: true,
       padding: const EdgeInsets.all(16),
       itemCount: _chatHistory.length,
-                  itemBuilder: (context, index) {
+      itemBuilder: (context, index) {
         final message = _chatHistory[index];
         final isUser = message['role'] == 'user';
         
         return Padding(
           padding: const EdgeInsets.only(bottom: 16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+          child: Column(
+            crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
             children: [
-              if (!isUser) ...[
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor: const Color(0xFF3B82F6),
-                  child: Icon(
-                    Icons.smart_toy_outlined,
-                    size: 16,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(width: 8),
-              ],
-              Flexible(
-                      child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                    color: isUser ? const Color(0xFF3B82F6) : Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 5,
-                        offset: const Offset(0, 2),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+                children: [
+                  if (!isUser) ...[
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: const Color(0xFF3B82F6),
+                      child: Icon(
+                        Icons.smart_toy_outlined,
+                        size: 16,
+                        color: Colors.white,
                       ),
-                    ],
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isUser ? const Color(0xFF3B82F6) : Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 5,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        isUser ? message['message'] : message['response'],
+                        style: TextStyle(
+                          color: isUser ? Colors.white : Colors.black87,
+                          fontSize: 14,
                         ),
-                        child: Text(
-                    isUser ? message['message'] : message['response'],
-                    style: TextStyle(
-                      color: isUser ? Colors.white : Colors.black87,
-                      fontSize: 14,
+                      ),
                     ),
                   ),
-                ),
+                  if (isUser) ...[
+                    const SizedBox(width: 8),
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: Colors.grey[300],
+                      child: Icon(
+                        Icons.person,
+                        size: 16,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ],
               ),
-              if (isUser) ...[
-                const SizedBox(width: 8),
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor: Colors.grey[300],
-                  child: Icon(
-                    Icons.person,
+              // Add star feedback widget for AI responses
+              if (!isUser) ...[
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.only(left: 40),
+                  child: StarFeedbackWidget(
                     size: 16,
-                    color: Colors.grey[600],
+                    mainContext: context,
+                    isShowText: false,
+                    icon: Icons.star_border,
                   ),
                 ),
               ],
             ],
-                      ),
-                    );
-                  },
-                );
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildInputArea() {
@@ -597,18 +611,18 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
           ),
         ],
       ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      decoration: InputDecoration(
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _controller,
+              decoration: InputDecoration(
                 hintText: 'Ask about your finances...',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(25),
                   borderSide: BorderSide.none,
                 ),
-                        filled: true,
+                filled: true,
                 fillColor: Colors.grey[100],
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 20,
@@ -674,16 +688,16 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                         size: 20,
                       ),
                       const SizedBox(width: 4),
-                      Text(
+                      const Text(
                         'Send',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.white,
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
-                    ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-            ),
           ),
         ],
       ),
